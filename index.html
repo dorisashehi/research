@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced Globe Visualization</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: #fff;
+      }
+
+      #canvas-container {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+
+      /* Control Panel */
+      #control-panel {
+        position: absolute;
+        top: 20px;
+        left: 60px;
+        background: rgba(20, 20, 40, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 100;
+        max-width: 300px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+      }
+
+      #control-panel.collapsed {
+        transform: translateX(-400px);
+      }
+
+
+      #control-panel h2 {
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        color: #4ecdc4;
+      }
+
+      .control-group {
+        margin-bottom: 15px;
+        position: relative;
+      }
+
+      .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #aaa;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .control-group input[type="range"] {
+        width: 100%;
+        accent-color: #4ecdc4;
+      }
+
+      .control-group input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 14px;
+      }
+
+      .control-group input[type="text"]:focus {
+        outline: none;
+        border-color: #4ecdc4;
+      }
+
+      .control-group select {
+        width: 100%;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .control-group select:focus {
+        outline: none;
+        border-color: #4ecdc4;
+      }
+
+      .control-group select option {
+        background: #1a1a2e;
+        color: #fff;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 8px 16px;
+        background: rgba(78, 205, 196, 0.2);
+        border: 1px solid #4ecdc4;
+        border-radius: 6px;
+        color: #4ecdc4;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.3s;
+        flex: 1;
+        min-width: 80px;
+      }
+
+      button:hover {
+        background: rgba(78, 205, 196, 0.3);
+        transform: translateY(-2px);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button.active {
+        background: #4ecdc4;
+        color: #0a0e27;
+      }
+
+      /* Info Panel */
+      #info-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(20, 20, 40, 0.95);
+        padding: 20px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 100;
+        max-width: 380px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        display: none;
+      }
+
+      #info-panel.visible {
+        display: block;
+      }
+
+      #info-panel h3 {
+        margin: 0 0 15px 0;
+        font-size: 22px;
+        color: #4ecdc4;
+        font-weight: 600;
+        border-bottom: 2px solid rgba(78, 205, 196, 0.3);
+        padding-bottom: 10px;
+      }
+
+      #info-panel p {
+        margin: 5px 0;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      #info-panel .close-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #fff;
+        font-size: 22px;
+        cursor: pointer;
+        padding: 5px 10px;
+        border-radius: 6px;
+        min-width: auto;
+        transition: all 0.3s;
+      }
+
+      #info-panel .close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+      }
+
+      #info-content {
+        margin-top: 10px;
+      }
+
+      .subfield-card {
+        margin-bottom: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.3s;
+      }
+
+      .subfield-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(78, 205, 196, 0.3);
+      }
+
+      .subfield-header {
+        padding: 12px 15px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        user-select: none;
+      }
+
+      .subfield-title {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .subfield-rank {
+        background: linear-gradient(135deg, #4ecdc4, #45b7d1);
+        color: #0a0e27;
+        font-weight: bold;
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        min-width: 24px;
+        text-align: center;
+      }
+
+      .subfield-name {
+        font-weight: 600;
+        color: #fff;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .subfield-works {
+        color: #4ecdc4;
+        font-size: 11px;
+        margin-top: 4px;
+        font-weight: 500;
+      }
+
+      .subfield-toggle {
+        color: #4ecdc4;
+        font-size: 18px;
+        transition: transform 0.3s;
+      }
+
+      .subfield-card.expanded .subfield-toggle {
+        transform: rotate(90deg);
+      }
+
+      .subfield-topics {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .subfield-card.expanded .subfield-topics {
+        max-height: 500px;
+      }
+
+      .topics-list {
+        padding: 10px 15px 15px 45px;
+        list-style: none;
+        margin: 0;
+      }
+
+      .topic-item {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .topic-item:last-child {
+        border-bottom: none;
+      }
+
+      .topic-name {
+        color: #ccc;
+        font-size: 12px;
+        line-height: 1.4;
+        flex: 1;
+      }
+
+      .topic-count {
+        color: #4ecdc4;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 10px;
+        white-space: nowrap;
+        opacity: 0.9;
+      }
+
+      .no-data-message {
+        margin-top: 20px;
+        padding: 20px;
+        text-align: center;
+        color: #888;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+      }
+
+      .section-header {
+        color: #4ecdc4;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 20px 0 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .section-header::before {
+        content: "📊";
+        font-size: 18px;
+      }
+
+      #info-panel::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      #info-panel::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+      }
+
+      #info-panel::-webkit-scrollbar-thumb {
+        background: rgba(78, 205, 196, 0.5);
+        border-radius: 4px;
+      }
+
+      #info-panel::-webkit-scrollbar-thumb:hover {
+        background: rgba(78, 205, 196, 0.7);
+      }
+
+      /* Tooltip */
+      #tooltip {
+        position: absolute;
+        background: rgba(20, 20, 40, 0.95);
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        pointer-events: none;
+        z-index: 200;
+        display: none;
+        font-size: 14px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
+
+
+      /* Loading */
+      #loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(20, 20, 40, 0.9);
+        padding: 30px 40px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 300;
+        text-align: center;
+      }
+
+      .spinner {
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top: 3px solid #4ecdc4;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Search Results */
+      #search-results {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+        background: rgba(20, 20, 40, 0.95);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 101;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
+
+      .search-result-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.2s;
+      }
+
+      .search-result-item:hover {
+        background: rgba(78, 205, 196, 0.1);
+      }
+
+      .search-result-item:last-child {
+        border-bottom: none;
+      }
+    </style>
+    <link rel="stylesheet" href="chatbot/chatbot.css" />
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading">
+      <div class="spinner"></div>
+      <div>Loading Globe Data...</div>
+    </div>
+
+    <!-- Control Panel -->
+    <div id="control-panel">
+      <h2>🌍 Globe Controls</h2>
+
+      <div class="control-group">
+        <label>Search Country</label>
+        <input
+          type="text"
+          id="country-search"
+          placeholder="Type country name..."
+        />
+        <div id="search-results"></div>
+      </div>
+
+      <div class="control-group">
+        <label>Rotation Speed: <span id="speed-value">0.1x</span></label>
+        <input
+          type="range"
+          id="rotation-speed"
+          min="0"
+          max="5"
+          step="0.1"
+          value="0.1"
+        />
+      </div>
+
+      <div class="control-group button-group">
+        <button id="toggle-rotation" class="active">Auto-Rotate</button>
+        <button id="reset-view">Reset View</button>
+      </div>
+
+      <div class="control-group button-group">
+        <button id="toggle-atmosphere">Atmosphere</button>
+      </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div id="info-panel">
+      <button class="close-btn" id="close-info">×</button>
+      <h3 id="country-name">Country Name</h3>
+      <div id="info-content"></div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip"></div>
+
+    <!-- Chatbot Container -->
+    <div id="chatbot-container"></div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="globe.js"></script>
+    <script src="chatbot/chatbot.js"></script>
+  </body>
+</html>
