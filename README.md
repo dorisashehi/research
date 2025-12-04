@@ -14,7 +14,7 @@ This project provides an interactive visualization platform for exploring global
 
 Here's a walkthrough of implemented required features:
 
-<img src='https://github.com/dorisashehi/research/reseach.gif' title='Video Walkthrough' width='' alt='Video Walkthrough' />
+<img src='https://github.com/dorisashehi/research/blob/main/reseach.gif' title='Video Walkthrough' width='' alt='Video Walkthrough' />
 
 ## Key Features
 
