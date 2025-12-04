@@ -10,6 +10,12 @@ This project provides an interactive visualization platform for exploring global
 1. **Interactive Globe Visualization**: A 3D globe showing research data by country with interactive exploration
 2. **AI-Powered Chatbot**: A RAG (Retrieval-Augmented Generation) chatbot that answers questions about research data using natural language
 
+## Video Walkthrough
+
+Here's a walkthrough of implemented required features:
+
+<img src='https://github.com/dorisashehi/research/blob/main/reseach.mp4' title='Video Walkthrough' width='' alt='Video Walkthrough' />
+
 ## Key Features
 
 ### Globe Visualization
