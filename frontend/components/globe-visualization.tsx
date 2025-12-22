@@ -409,6 +409,39 @@ export default function GlobeVisualization() {
     };
   }, [autoRotate, rotationSpeed]);
 
+  // Update visual appearance when selectedCountry changes
+  useEffect(() => {
+    // Reset all countries to default appearance
+    countryMeshesRef.current.forEach((cm) => {
+      cm.mesh.material.opacity = 0.0;
+      cm.mesh.material.color.setHex(cm.baseColor);
+    });
+
+    borderLinesRef.current.forEach((bl) => {
+      bl.line.material.opacity = bl.baseOpacity;
+      bl.line.material.color.setHex(bl.baseColor);
+    });
+
+    // Highlight selected country
+    if (selectedCountry) {
+      // Make country mesh white and visible
+      countryMeshesRef.current.forEach((cm) => {
+        if (cm.country === selectedCountry) {
+          cm.mesh.material.opacity = 1.0;
+          cm.mesh.material.color.setHex(0xffffff);
+        }
+      });
+
+      // Make border lines white and fully opaque
+      borderLinesRef.current.forEach((bl) => {
+        if (bl.country === selectedCountry) {
+          bl.line.material.opacity = 1.0;
+          bl.line.material.color.setHex(0xffffff);
+        }
+      });
+    }
+  }, [selectedCountry]);
+
   const latLonToVector3 = (lat: number, lon: number, r: number) => {
     const phi = ((90 - lat) * Math.PI) / 180;
     const theta = ((lon + 180) * Math.PI) / 180;
