@@ -50,7 +50,7 @@ export default function GlobeVisualization() {
   const [loading, setLoading] = useState(true);
   const [loadingCountryData, setLoadingCountryData] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [rotationSpeed, setRotationSpeed] = useState(0.1);
+  const [rotationSpeed, setRotationSpeed] = useState(0.5);
   const [showAtmosphere, setShowAtmosphere] = useState(true);
 
   const countryDataMapRef = useRef<Map<string, CountryInfo>>(new Map());
@@ -373,7 +373,7 @@ export default function GlobeVisualization() {
       if (autoRotate) {
         [globe, countryFillsGroup, bordersGroup, atmosphere, starfield].forEach(
           (obj) => {
-            obj.rotation.y += (rotationSpeed / 100) * 0.0001;
+            obj.rotation.y += rotationSpeed * 0.001;
           }
         );
       }
