@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react";
 
 interface CountryInfo {
-  name: string
-  code: string
-  region: string
-  population: number
-  gdp: number
+  name: string;
+  code: string;
+  region: string;
+  population: number;
+  gdp: number;
 }
 
 interface ControlPanelProps {
-  autoRotate: boolean
-  onAutoRotateChange: (value: boolean) => void
-  rotationSpeed: number
-  onRotationSpeedChange: (value: number) => void
-  onResetView: () => void
-  onToggleAtmosphere: () => void
-  showAtmosphere: boolean
-  countryDataMap: Map<string, CountryInfo>
-  onCountrySelect: (country: string) => void
+  autoRotate: boolean;
+  onAutoRotateChange: (value: boolean) => void;
+  rotationSpeed: number;
+  onRotationSpeedChange: (value: number) => void;
+  onResetView: () => void;
+  onToggleAtmosphere: () => void;
+  showAtmosphere: boolean;
+  countryDataMap: Map<string, CountryInfo>;
+  onCountrySelect: (country: string) => void;
 }
 
 export default function ControlPanel({
@@ -33,47 +33,51 @@ export default function ControlPanel({
   countryDataMap,
   onCountrySelect,
 }: ControlPanelProps) {
-  const [searchInput, setSearchInput] = useState("")
-  const [searchResults, setSearchResults] = useState<string[]>([])
-  const [showResults, setShowResults] = useState(false)
-  const searchRef = useRef<HTMLDivElement>(null)
+  const [searchInput, setSearchInput] = useState("");
+  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = (value: string) => {
-    setSearchInput(value)
+    setSearchInput(value);
 
     if (value.length > 0) {
       const results = Array.from(countryDataMap.entries())
-        .filter(([_, data]) => data.name.toLowerCase().includes(value.toLowerCase()))
+        .filter(([_, data]) =>
+          data.name.toLowerCase().includes(value.toLowerCase())
+        )
         .map(([_, data]) => data.name)
-        .slice(0, 10)
+        .slice(0, 10);
 
-      setSearchResults(results)
-      setShowResults(true)
+      setSearchResults(results);
+      setShowResults(true);
     } else {
-      setShowResults(false)
+      setShowResults(false);
     }
-  }
+  };
 
   const handleSelectCountry = (countryName: string) => {
-    setSearchInput(countryName)
-    setShowResults(false)
+    setSearchInput(countryName);
+    setShowResults(false);
 
-    const countryId = Array.from(countryDataMap.entries()).find(([_, data]) => data.name === countryName)?.[0]
+    const countryId = Array.from(countryDataMap.entries()).find(
+      ([_, data]) => data.name === countryName
+    )?.[0];
     if (countryId) {
-      onCountrySelect(countryId)
+      onCountrySelect(countryId);
     }
-  }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowResults(false)
+        setShowResults(false);
       }
-    }
+    };
 
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="absolute top-5 left-5 z-50 max-w-80">
@@ -81,7 +85,9 @@ export default function ControlPanel({
         {/* Header with Globe Icon */}
         <div className="flex items-center gap-2 mb-6">
           <span className="text-2xl">🌍</span>
-          <h2 className="text-xl font-semibold text-white">Globe Controls</h2>
+          <h2 className="text-xl font-semibold" style={{ color: "#4fc3ae" }}>
+            Globe Controls
+          </h2>
         </div>
 
         {/* Search */}
@@ -115,7 +121,8 @@ export default function ControlPanel({
         {/* Rotation Speed */}
         <div className="mb-6">
           <label className="block text-xs uppercase text-gray-400 tracking-wider mb-3 font-medium">
-            ROTATION SPEED: <span className="text-cyan-400">{rotationSpeed.toFixed(1)}X</span>
+            ROTATION SPEED:{" "}
+            <span className="text-cyan-400">{rotationSpeed.toFixed(1)}X</span>
           </label>
           <input
             type="range"
@@ -123,10 +130,14 @@ export default function ControlPanel({
             max="5"
             step="0.1"
             value={rotationSpeed}
-            onChange={(e) => onRotationSpeedChange(Number.parseFloat(e.target.value))}
+            onChange={(e) =>
+              onRotationSpeedChange(Number.parseFloat(e.target.value))
+            }
             className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
             style={{
-              background: `linear-gradient(to right, #22d3ee 0%, #22d3ee ${(rotationSpeed / 5) * 100}%, #475569 ${(rotationSpeed / 5) * 100}%, #475569 100%)`
+              background: `linear-gradient(to right, #22d3ee 0%, #22d3ee ${
+                (rotationSpeed / 5) * 100
+              }%, #475569 ${(rotationSpeed / 5) * 100}%, #475569 100%)`,
             }}
           />
         </div>
@@ -137,15 +148,32 @@ export default function ControlPanel({
             onClick={() => onAutoRotateChange(!autoRotate)}
             className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
               autoRotate
-                ? "bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-400/30"
-                : "bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/30"
+                ? "text-slate-900 shadow-lg"
+                : "bg-opacity-20 border hover:bg-opacity-30"
             }`}
+            style={{
+              backgroundColor: autoRotate
+                ? "#4fc3ae"
+                : "rgba(79, 195, 174, 0.2)",
+              color: autoRotate ? "#0f172a" : "#4fc3ae",
+              borderColor: autoRotate
+                ? "transparent"
+                : "rgba(79, 195, 174, 0.5)",
+              boxShadow: autoRotate
+                ? "0 10px 15px -3px rgba(79, 195, 174, 0.3)"
+                : "none",
+            }}
           >
             Auto-Rotate
           </button>
           <button
             onClick={onResetView}
-            className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/30`}
+            className="flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all bg-opacity-20 border hover:bg-opacity-30"
+            style={{
+              backgroundColor: "rgba(79, 195, 174, 0.2)",
+              color: "#4fc3ae",
+              borderColor: "rgba(79, 195, 174, 0.5)",
+            }}
           >
             Reset View
           </button>
@@ -156,13 +184,25 @@ export default function ControlPanel({
           onClick={onToggleAtmosphere}
           className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
             showAtmosphere
-              ? "bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-400/30"
-              : "bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/30"
+              ? "text-slate-900 shadow-lg"
+              : "bg-opacity-20 border hover:bg-opacity-30"
           }`}
+          style={{
+            backgroundColor: showAtmosphere
+              ? "#4fc3ae"
+              : "rgba(79, 195, 174, 0.2)",
+            color: showAtmosphere ? "#0f172a" : "#4fc3ae",
+            borderColor: showAtmosphere
+              ? "transparent"
+              : "rgba(79, 195, 174, 0.5)",
+            boxShadow: showAtmosphere
+              ? "0 10px 15px -3px rgba(79, 195, 174, 0.3)"
+              : "none",
+          }}
         >
           Atmosphere
         </button>
       </div>
     </div>
-  )
+  );
 }
