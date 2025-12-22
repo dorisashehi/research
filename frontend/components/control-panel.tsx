@@ -76,28 +76,34 @@ export default function ControlPanel({
   }, [])
 
   return (
-    <div className="absolute top-5 left-16 z-50 max-w-80">
-      <div className="bg-blue-900/50 backdrop-blur-md p-5 rounded-lg border border-white/10 shadow-lg">
-        <h2 className="text-lg font-semibold text-cyan-400 mb-4">🌍 Globe Controls</h2>
+    <div className="absolute top-5 left-5 z-50 max-w-80">
+      <div className="bg-slate-900/90 backdrop-blur-md p-6 rounded-xl border border-slate-700/50 shadow-2xl">
+        {/* Header with Globe Icon */}
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-2xl">🌍</span>
+          <h2 className="text-xl font-semibold text-white">Globe Controls</h2>
+        </div>
 
         {/* Search */}
-        <div className="mb-4 relative" ref={searchRef}>
-          <label className="block text-xs uppercase text-gray-400 tracking-wider mb-2">Search Country</label>
+        <div className="mb-6 relative" ref={searchRef}>
+          <label className="block text-xs uppercase text-gray-400 tracking-wider mb-2 font-medium">
+            SEARCH COUNTRY
+          </label>
           <input
             type="text"
             value={searchInput}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Type country name..."
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none"
+            placeholder="Canada"
+            className="w-full px-4 py-3 bg-slate-800/80 border border-slate-600/50 rounded-lg text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-all"
           />
 
           {showResults && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-blue-900/95 backdrop-blur border border-white/10 rounded-md shadow-lg max-h-60 overflow-y-auto z-10">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur border border-slate-600/50 rounded-lg shadow-xl max-h-60 overflow-y-auto z-10">
               {searchResults.map((result) => (
                 <div
                   key={result}
                   onClick={() => handleSelectCountry(result)}
-                  className="px-3 py-2 cursor-pointer hover:bg-cyan-400/20 border-b border-white/5 last:border-b-0 text-white text-sm"
+                  className="px-4 py-2 cursor-pointer hover:bg-cyan-400/20 border-b border-slate-700/50 last:border-b-0 text-white text-sm transition-colors"
                 >
                   {result}
                 </div>
@@ -107,9 +113,9 @@ export default function ControlPanel({
         </div>
 
         {/* Rotation Speed */}
-        <div className="mb-4">
-          <label className="block text-xs uppercase text-gray-400 tracking-wider mb-2">
-            Rotation Speed: <span className="text-cyan-400">{rotationSpeed.toFixed(1)}x</span>
+        <div className="mb-6">
+          <label className="block text-xs uppercase text-gray-400 tracking-wider mb-3 font-medium">
+            ROTATION SPEED: <span className="text-cyan-400">{rotationSpeed.toFixed(1)}X</span>
           </label>
           <input
             type="range"
@@ -118,37 +124,40 @@ export default function ControlPanel({
             step="0.1"
             value={rotationSpeed}
             onChange={(e) => onRotationSpeedChange(Number.parseFloat(e.target.value))}
-            className="w-full accent-cyan-400 cursor-pointer"
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+            style={{
+              background: `linear-gradient(to right, #22d3ee 0%, #22d3ee ${(rotationSpeed / 5) * 100}%, #475569 ${(rotationSpeed / 5) * 100}%, #475569 100%)`
+            }}
           />
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-2 mb-4">
+        {/* Buttons Row */}
+        <div className="flex gap-3 mb-3">
           <button
             onClick={() => onAutoRotateChange(!autoRotate)}
-            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
               autoRotate
-                ? "bg-cyan-400 text-blue-900"
-                : "bg-cyan-400/20 text-cyan-400 border border-cyan-400 hover:bg-cyan-400/30"
+                ? "bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-400/30"
+                : "bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/30"
             }`}
           >
             Auto-Rotate
           </button>
           <button
             onClick={onResetView}
-            className="flex-1 px-3 py-2 rounded-md text-sm font-medium bg-cyan-400/20 text-cyan-400 border border-cyan-400 hover:bg-cyan-400/30 transition-all"
+            className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/30`}
           >
             Reset View
           </button>
         </div>
 
-        {/* Atmosphere */}
+        {/* Atmosphere Button */}
         <button
           onClick={onToggleAtmosphere}
-          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-all ${
+          className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
             showAtmosphere
-              ? "bg-cyan-400 text-blue-900"
-              : "bg-cyan-400/20 text-cyan-400 border border-cyan-400 hover:bg-cyan-400/30"
+              ? "bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-400/30"
+              : "bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/30"
           }`}
         >
           Atmosphere
