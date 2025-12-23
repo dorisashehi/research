@@ -56,6 +56,7 @@ export default function GlobeVisualization() {
   const [rotationSpeed, setRotationSpeed] = useState(0.2);
   const [showAtmosphere, setShowAtmosphere] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const countryDataMapRef = useRef<Map<string, CountryInfo>>(new Map());
   const borderLinesRef = useRef<any[]>([]);
@@ -185,6 +186,7 @@ export default function GlobeVisualization() {
 
   // Initialize Three.js scene
   useEffect(() => {
+    setIsMounted(true);
     if (!mountRef.current) return;
 
     // Scene setup
@@ -631,8 +633,8 @@ export default function GlobeVisualization() {
               feature.properties?.REGION_UN ||
               feature.properties?.SUBREGION ||
               "Unknown",
-            population: Math.floor(Math.random() * 100000000),
-            gdp: Math.floor(Math.random() * 1000000000000),
+            population: 0, // Placeholder - would be fetched from API if needed
+            gdp: 0, // Placeholder - would be fetched from API if needed
           });
         }
       });

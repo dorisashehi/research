@@ -86,7 +86,7 @@ export default function ControlPanel({
         <div className="flex items-center gap-2 mb-6">
           <span className="text-2xl">🌍</span>
           <h2 className="text-xl font-semibold" style={{ color: "#4fc3ae" }}>
-            Globe Controls
+            Globe-al Research
           </h2>
         </div>
 

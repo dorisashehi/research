@@ -30,14 +30,21 @@ export default function ChatInterface({
   onClose,
   selectedCountry,
 }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Hello! I'm your research assistant. I can help you explore research data with visual charts. Select a question below to get started:",
-      isUser: false,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Initialize messages on client only to avoid hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+    setMessages([
+      {
+        id: "1",
+        text: "Hello! I'm your research assistant. I can help you explore research data with visual charts. Select a question below to get started:",
+        isUser: false,
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
 
   // Suggested questions based on selected country
   const getSuggestedQuestions = () => {
@@ -59,7 +66,7 @@ export default function ChatInterface({
     if (isLoading) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}-${Math.random()}`,
       text: question,
       isUser: true,
       timestamp: new Date(),
@@ -87,7 +94,7 @@ export default function ChatInterface({
       const data = await response.json();
 
       const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `bot-${Date.now()}-${Math.random()}`,
         text: data.response || "I'm processing your query...",
         isUser: false,
         timestamp: new Date(),
@@ -99,7 +106,7 @@ export default function ChatInterface({
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `error-${Date.now()}-${Math.random()}`,
         text: "Sorry, I'm having trouble connecting to the chatbot. Please make sure the chatbot API is running on port 5000.",
         isUser: false,
         timestamp: new Date(),
@@ -130,7 +137,7 @@ export default function ChatInterface({
     if (!inputValue.trim() || isLoading) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}-${Math.random()}`,
       text: inputValue,
       isUser: true,
       timestamp: new Date(),
@@ -160,7 +167,7 @@ export default function ChatInterface({
       const data = await response.json();
 
       const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `bot-${Date.now()}-${Math.random()}`,
         text: data.response || "I'm processing your query...",
         isUser: false,
         timestamp: new Date(),
@@ -172,7 +179,7 @@ export default function ChatInterface({
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `error-${Date.now()}-${Math.random()}`,
         text: "Sorry, I'm having trouble connecting to the chatbot. Please make sure the chatbot API is running on port 5000.",
         isUser: false,
         timestamp: new Date(),
@@ -190,7 +197,7 @@ export default function ChatInterface({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   return (
     <Card className="fixed left-4 top-1/2 -translate-y-1/2 w-[650px] h-[850px] max-h-[90vh] flex flex-col shadow-2xl border-2 z-50 bg-[#1A1A2E]/95 backdrop-blur-sm border-[#4fc3ae]/30">
