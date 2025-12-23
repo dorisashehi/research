@@ -6,9 +6,17 @@ A comprehensive interactive platform for exploring global research trends in sci
 
 Watch a demonstration of the platform in action:
 
-[![Video Walkthrough](https://img.youtube.com/vi/bjQb1xpxX7s/maxresdefault.jpg)](https://youtu.be/bjQb1xpxX7s)
+<div align="center">
+  <a href="https://youtu.be/bjQb1xpxX7s">
+    <img src="https://img.youtube.com/vi/bjQb1xpxX7s/maxresdefault.jpg" alt="Video Walkthrough" style="width:100%;max-width:800px;">
+  </a>
+</div>
+
+<iframe width="100%" height="500" src="https://www.youtube.com/embed/bjQb1xpxX7s?autoplay=1&mute=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 **Direct Link**: [https://youtu.be/bjQb1xpxX7s](https://youtu.be/bjQb1xpxX7s)
+
+> **Note**: Autoplay may be blocked by your browser. If the video doesn't start automatically, click play manually. The video is muted by default to comply with browser autoplay policies.
 
 ## 📋 Table of Contents
 
