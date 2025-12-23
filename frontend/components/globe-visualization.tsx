@@ -1053,22 +1053,22 @@ export default function GlobeVisualization() {
       />
       <Tooltip {...tooltip} />
 
-      {/* Chat Button - Left Side - Fixed position, always visible when chat is closed */}
+      {/* Chat Button - Bottom Left - Fixed position, always visible when chat is closed */}
       {!isChatOpen && (
         <div
-          className="fixed left-6 top-1/2 -translate-y-1/2 z-[9999] pointer-events-auto"
+          className="fixed left-6 bottom-20 z-[9999] pointer-events-auto"
           style={{ position: "fixed" }}
         >
           <Button
             onClick={() => setIsChatOpen(true)}
-            className="h-16 w-16 rounded-full shadow-2xl hover:scale-110 transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 border-4 border-white/50 cursor-pointer flex items-center justify-center"
+            className="h-16 w-16 rounded-full shadow-2xl hover:scale-110 transition-all duration-200 bg-[#1A1A2E] text-[#4fc3ae] hover:bg-[#1A1A2E] border-2 border-[#4fc3ae] cursor-pointer flex items-center justify-center"
             size="icon"
             title="Open Chat Assistant - Ask questions about research data"
           >
-            <MessageCircle className="h-7 w-7" />
+            <MessageCircle className="h-7 w-7 text-[#4fc3ae]" />
           </Button>
-          <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white animate-ping"></div>
-          <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white"></div>
+          <div className="absolute -top-1 -right-1 h-5 w-5 bg-[#4fc3ae] rounded-full border-2 border-[#1A1A2E] animate-ping"></div>
+          <div className="absolute -top-1 -right-1 h-5 w-5 bg-[#4fc3ae] rounded-full border-2 border-[#1A1A2E]"></div>
         </div>
       )}
 

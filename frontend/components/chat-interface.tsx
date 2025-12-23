@@ -230,7 +230,7 @@ export default function ChatInterface({
               }
             }}
             disabled={isLoading}
-            className="h-8 border-[#4fc3ae]/50 text-white hover:bg-[#4fc3ae]/10 hover:border-[#4fc3ae] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-8 bg-[#1A1A2E] border-[#4fc3ae] text-[#4fc3ae] hover:bg-[#1A1A2E] hover:border-[#4fc3ae] hover:text-[#4fc3ae] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg cursor-pointer"
           >
             Reset
           </Button>
@@ -305,7 +305,7 @@ export default function ChatInterface({
                         variant="outline"
                         onClick={() => handleSuggestedQuestion(question)}
                         disabled={isLoading}
-                        className="w-full justify-start text-left h-auto py-2.5 px-4 bg-[#2C3E50] border-[#4fc3ae]/50 text-white hover:bg-[#4fc3ae]/10 hover:border-[#4fc3ae] text-sm font-normal transition-all"
+                        className="w-full justify-start text-left h-auto py-2.5 px-4 bg-[#1A1A2E] border-[#4fc3ae] text-[#4fc3ae] hover:bg-[#1A1A2E] hover:border-[#4fc3ae] hover:text-[#4fc3ae] text-sm font-normal transition-all rounded-lg cursor-pointer"
                       >
                         {question}
                       </Button>
