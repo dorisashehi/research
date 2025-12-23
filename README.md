@@ -22,7 +22,7 @@ This project provides an interactive visualization platform for exploring global
 
 1. **3D Interactive Globe Visualization**: Explore research data by country on a beautiful, interactive 3D globe
 2. **AI-Powered Chatbot**: Ask questions about research data in natural language and receive intelligent responses with visualizations
-3. **Unified Backend API**: Single Flask server providing both data endpoints and chatbot functionality
+3. **Unified Backend API**: Single FastAPI server providing both data endpoints and chatbot functionality
 
 ### Key Features
 
@@ -50,9 +50,9 @@ This project provides an interactive visualization platform for exploring global
 └─────────────────────────┼───────────────────────────────────┘
                           │ HTTP/REST API
 ┌─────────────────────────┼───────────────────────────────────┐
-│                  Backend (Flask API)                         │
+│                  Backend (FastAPI)                         │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │              Unified Flask Server                      │  │
+│  │              Unified FastAPI Server                    │  │
 │  │  ┌──────────────────┐    ┌──────────────────┐       │  │
 │  │  │ Data Endpoints    │    │ Chatbot Endpoints │       │  │
 │  │  │ - Countries       │    │ - /api/chat      │       │  │
@@ -90,7 +90,7 @@ This project provides an interactive visualization platform for exploring global
 
 2. **Backend Layer**:
 
-   - Unified Flask server (port 5000)
+   - Unified FastAPI server (port 5000)
    - Data API endpoints
    - Chatbot endpoints with intent classification
    - Direct data access (no HTTP calls needed)
@@ -111,7 +111,7 @@ Frontend: Globe Component
     ↓
 HTTP Request: GET /api/countries/{code}/data
     ↓
-Backend: Flask API
+Backend: FastAPI
     ↓
 Data Helper: _get_country_data_internal()
     ↓
@@ -176,7 +176,7 @@ Backend: Load on Startup (cached)
 
 ## 🔧 Backend Functionality
 
-The backend is a unified Flask server (`backend/server.py`) that provides both data API and chatbot functionality on port 5000.
+The backend is a unified FastAPI server (`backend/server.py`) that provides both data API and chatbot functionality on port 5000. FastAPI provides automatic API documentation, type validation, and async support.
 
 ### Core Components
 
@@ -227,7 +227,7 @@ The chatbot functionality is integrated directly into the main server:
 
 ```
 backend/
-├── server.py              # Main Flask server (unified API)
+├── server.py              # Main FastAPI server (unified API)
 ├── save_country_data.py   # Script to fetch country data from OpenAlex
 ├── requirements.txt       # Python dependencies
 ├── data/                  # CSV data files
@@ -498,6 +498,12 @@ Located in top-left corner:
 
    The API will start on `http://localhost:5000`
 
+   **FastAPI Features:**
+
+   - Interactive API documentation: `http://localhost:5000/docs` (Swagger UI)
+   - Alternative docs: `http://localhost:5000/redoc` (ReDoc)
+   - Automatic OpenAPI schema: `http://localhost:5000/openapi.json`
+
 2. **Start Frontend**
 
    ```bash
@@ -516,7 +522,7 @@ Located in top-left corner:
 ```
 ctp-project/
 ├── backend/
-│   ├── server.py              # Unified Flask API server
+│   ├── server.py              # Unified FastAPI server
 │   ├── save_country_data.py   # Script to fetch country data
 │   ├── requirements.txt       # Python dependencies
 │   ├── data/                  # CSV data files
@@ -648,7 +654,9 @@ See [Chatbot Functionality](#-chatbot-functionality) section for response format
 
 ### Backend
 
-- **Flask**: Web framework for API endpoints
+- **FastAPI**: Modern, fast web framework for API endpoints with automatic documentation
+- **Uvicorn**: ASGI server for running FastAPI
+- **Pydantic**: Data validation using Python type annotations
 - **Pandas**: Data manipulation and analysis
 - **pyalex**: OpenAlex API client
 - **scikit-learn**: TF-IDF vectorization for similarity calculation
