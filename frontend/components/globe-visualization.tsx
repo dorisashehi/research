@@ -5,6 +5,9 @@ import * as THREE from "three";
 import ControlPanel from "./control-panel";
 import InfoPanel from "./info-panel";
 import Tooltip from "./tooltip";
+import ChatInterface from "./chat-interface";
+import { Button } from "./ui/button";
+import { MessageCircle } from "lucide-react";
 
 interface CountryInfo {
   name: string;
@@ -52,6 +55,7 @@ export default function GlobeVisualization() {
   const [autoRotate, setAutoRotate] = useState(true);
   const [rotationSpeed, setRotationSpeed] = useState(0.2);
   const [showAtmosphere, setShowAtmosphere] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const countryDataMapRef = useRef<Map<string, CountryInfo>>(new Map());
   const borderLinesRef = useRef<any[]>([]);
@@ -993,7 +997,7 @@ export default function GlobeVisualization() {
   };
 
   return (
-    <div className="w-full h-screen overflow-hidden bg-black">
+    <div className="w-full h-screen overflow-hidden bg-black relative">
       <div ref={mountRef} className="w-full h-full" />
 
       {loading && (
@@ -1048,6 +1052,32 @@ export default function GlobeVisualization() {
         }}
       />
       <Tooltip {...tooltip} />
+
+      {/* Chat Button - Left Side - Fixed position, always visible when chat is closed */}
+      {!isChatOpen && (
+        <div
+          className="fixed left-6 top-1/2 -translate-y-1/2 z-[9999] pointer-events-auto"
+          style={{ position: "fixed" }}
+        >
+          <Button
+            onClick={() => setIsChatOpen(true)}
+            className="h-16 w-16 rounded-full shadow-2xl hover:scale-110 transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 border-4 border-white/50 cursor-pointer flex items-center justify-center"
+            size="icon"
+            title="Open Chat Assistant - Ask questions about research data"
+          >
+            <MessageCircle className="h-7 w-7" />
+          </Button>
+          <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white animate-ping"></div>
+          <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white"></div>
+        </div>
+      )}
+
+      {/* Chat Interface */}
+      <ChatInterface
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        selectedCountry={countryInfo?.code || null}
+      />
     </div>
   );
 }
