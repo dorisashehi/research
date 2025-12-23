@@ -250,8 +250,13 @@ def generate_chart_title(message, classification):
         countries = params.get('countries', [])
         subfields = params.get('subfields', [])
 
-        if subfields and countries:
-            # Subfield-specific comparison
+        if subfields and len(subfields) >= 2:
+            # Multiple subfields comparison
+            subfield_names = [s.title() for s in subfields[:2]]
+            country_text = f" in {', '.join(countries)}" if countries else ""
+            title = f"Subfield Comparison: {' vs '.join(subfield_names)}{country_text}"
+        elif subfields and countries:
+            # Subfield-specific comparison across countries
             subfield_name = subfields[0].title()  # Capitalize first letter
             title = f"{subfield_name} Comparison: {', '.join(countries)}"
         elif countries:
@@ -322,14 +327,59 @@ def fetch_chart_data(classification, country=None):
                 print(f"Error fetching ranking data: {e}")
                 return None
 
-        # Comparison queries - compare multiple countries
+        # Comparison queries - compare multiple countries or subfields
         elif intent == 'comparison':
             comparison_data = []
             subfield_names = params.get('subfields', [])
 
-            # If a specific subfield is mentioned, compare that subfield across countries
-            if subfield_names:
-                subfield_name = subfield_names[0]  # Use the first subfield found
+            # Case 1: Compare multiple subfields (same country or different countries)
+            # Example: "Compare ecology and physics" or "Compare ecology and physics in US"
+            if len(subfield_names) >= 2:
+                # Multiple subfields to compare
+                country_code = countries[0] if countries else (country or 'US')
+
+                try:
+                    response = requests.get(
+                        f"{API_BASE_URL}/api/countries/{country_code}/subfields",
+                        timeout=5
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        all_subfields = data.get('data', [])
+
+                        # Find each subfield mentioned
+                        for subfield_name in subfield_names[:5]:  # Limit to 5 subfields
+                            subfield_lower = subfield_name.lower()
+                            matching_subfield = None
+
+                            # Try to find the subfield
+                            for sf in all_subfields:
+                                sf_name_lower = str(sf.get('name', '')).lower()
+                                if subfield_lower == sf_name_lower or subfield_lower in sf_name_lower or sf_name_lower in subfield_lower:
+                                    if not matching_subfield or len(sf_name_lower) > len(str(matching_subfield.get('name', '')).lower()):
+                                        matching_subfield = sf
+
+                            if matching_subfield:
+                                comparison_data.append({
+                                    'name': matching_subfield.get('name', 'Unknown'),
+                                    'value': matching_subfield.get('works_count', 0),
+                                    'country': country_code,
+                                    'subfield': matching_subfield.get('name', 'Unknown')
+                                })
+
+                        if comparison_data:
+                            return {
+                                'labels': [item['name'] for item in comparison_data],
+                                'values': [item['value'] for item in comparison_data],
+                                'data': comparison_data
+                            }
+                except Exception as e:
+                    print(f"Error fetching subfield comparison data: {e}")
+
+            # Case 2: Compare one subfield across multiple countries
+            # Example: "Compare ecology in US and CA"
+            elif len(subfield_names) == 1 and len(countries) >= 2:
+                subfield_name = subfield_names[0]
 
                 for country_code in countries[:3]:  # Limit to 3 countries
                     try:
@@ -342,7 +392,6 @@ def fetch_chart_data(classification, country=None):
                             subfields = data.get('data', [])
 
                             # Find the subfield by name (case-insensitive, partial match)
-                            # Try exact match first, then partial match
                             matching_subfield = None
                             subfield_lower = subfield_name.lower()
 
@@ -357,9 +406,7 @@ def fetch_chart_data(classification, country=None):
                             if not matching_subfield:
                                 for sf in subfields:
                                     sf_name_lower = str(sf.get('name', '')).lower()
-                                    # Check if search term is in subfield name or subfield name is in search term
                                     if subfield_lower in sf_name_lower or sf_name_lower in subfield_lower:
-                                        # Prefer longer matches (more specific)
                                         if not matching_subfield or len(sf_name_lower) > len(str(matching_subfield.get('name', '')).lower()):
                                             matching_subfield = sf
 
@@ -376,7 +423,6 @@ def fetch_chart_data(classification, country=None):
                         continue
 
                 if comparison_data:
-                    # Create labels showing country and subfield
                     labels = []
                     for item in comparison_data:
                         labels.append(f"{item['country']} - {item['subfield']}")
@@ -385,7 +431,7 @@ def fetch_chart_data(classification, country=None):
                         'labels': labels,
                         'values': [item['value'] for item in comparison_data],
                         'data': comparison_data,
-                        'subfield_name': subfield_name  # Include the subfield name for chart title
+                        'subfield_name': subfield_name
                     }
 
             # Default: compare total works across countries (original behavior)
