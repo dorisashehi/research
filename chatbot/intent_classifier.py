@@ -193,6 +193,7 @@ class IntentClassifier:
             'countries': [],
             'years': [],
             'limit': None,
+            'subfields': [],  # For subfield-specific comparisons
         }
 
         query_lower = query.lower()
@@ -258,6 +259,34 @@ class IntentClassifier:
             else:
                 # Default to 10 if no number specified
                 params['limit'] = 10
+
+        # Extract subfield names from the query (for subfield-specific comparisons)
+        # Common subfield names in research
+        common_subfields = [
+            'ecology', 'physics', 'chemistry', 'biology', 'mathematics',
+            'engineering', 'computer science', 'astronomy', 'geology',
+            'materials science', 'environmental science', 'biochemistry',
+            'quantum physics', 'molecular biology', 'neuroscience',
+            'genetics', 'evolution', 'climate', 'energy', 'nanotechnology',
+            'artificial intelligence', 'machine learning', 'data science',
+            'biomedical', 'mechanical engineering', 'electrical engineering',
+            'civil engineering', 'chemical engineering', 'aerospace',
+            'statistics', 'computational', 'theoretical', 'applied',
+        ]
+
+        # Look for subfield names in the query (check longer names first)
+        found_subfields = []
+        for subfield in sorted(common_subfields, key=len, reverse=True):
+            # Use word boundaries to match whole words
+            pattern = r'\b' + re.escape(subfield) + r'\b'
+            if re.search(pattern, query_lower):
+                if subfield not in found_subfields:
+                    found_subfields.append(subfield)
+                    # Remove shorter matches if a longer one is found
+                    found_subfields = [sf for sf in found_subfields if not (sf != subfield and sf in subfield)]
+
+        if found_subfields:
+            params['subfields'] = found_subfields
 
         return params
 

@@ -248,7 +248,14 @@ def generate_chart_title(message, classification):
         title = f"Top {params['limit']} Rankings"
     elif intent == 'comparison':
         countries = params.get('countries', [])
-        if countries:
+        subfields = params.get('subfields', [])
+
+        if subfields and countries:
+            # Subfield-specific comparison
+            subfield_name = subfields[0].title()  # Capitalize first letter
+            title = f"{subfield_name} Comparison: {', '.join(countries)}"
+        elif countries:
+            # General country comparison
             title = f"Comparison: {', '.join(countries)}"
     elif intent == 'trend':
         years = params.get('years', [])
@@ -318,7 +325,70 @@ def fetch_chart_data(classification, country=None):
         # Comparison queries - compare multiple countries
         elif intent == 'comparison':
             comparison_data = []
+            subfield_names = params.get('subfields', [])
 
+            # If a specific subfield is mentioned, compare that subfield across countries
+            if subfield_names:
+                subfield_name = subfield_names[0]  # Use the first subfield found
+
+                for country_code in countries[:3]:  # Limit to 3 countries
+                    try:
+                        response = requests.get(
+                            f"{API_BASE_URL}/api/countries/{country_code}/subfields",
+                            timeout=5
+                        )
+                        if response.status_code == 200:
+                            data = response.json()
+                            subfields = data.get('data', [])
+
+                            # Find the subfield by name (case-insensitive, partial match)
+                            # Try exact match first, then partial match
+                            matching_subfield = None
+                            subfield_lower = subfield_name.lower()
+
+                            # First try: exact match (case-insensitive)
+                            for sf in subfields:
+                                sf_name_lower = str(sf.get('name', '')).lower()
+                                if sf_name_lower == subfield_lower:
+                                    matching_subfield = sf
+                                    break
+
+                            # Second try: subfield name contains the search term or vice versa
+                            if not matching_subfield:
+                                for sf in subfields:
+                                    sf_name_lower = str(sf.get('name', '')).lower()
+                                    # Check if search term is in subfield name or subfield name is in search term
+                                    if subfield_lower in sf_name_lower or sf_name_lower in subfield_lower:
+                                        # Prefer longer matches (more specific)
+                                        if not matching_subfield or len(sf_name_lower) > len(str(matching_subfield.get('name', '')).lower()):
+                                            matching_subfield = sf
+
+                            if matching_subfield:
+                                comparison_data.append({
+                                    'name': f"{country_code}",
+                                    'value': matching_subfield.get('works_count', 0),
+                                    'country': country_code,
+                                    'subfield': matching_subfield.get('name', 'Unknown'),
+                                    'full_label': f"{country_code} - {matching_subfield.get('name', 'Unknown')}"
+                                })
+                    except Exception as e:
+                        print(f"Error fetching comparison data for {country_code}: {e}")
+                        continue
+
+                if comparison_data:
+                    # Create labels showing country and subfield
+                    labels = []
+                    for item in comparison_data:
+                        labels.append(f"{item['country']} - {item['subfield']}")
+
+                    return {
+                        'labels': labels,
+                        'values': [item['value'] for item in comparison_data],
+                        'data': comparison_data,
+                        'subfield_name': subfield_name  # Include the subfield name for chart title
+                    }
+
+            # Default: compare total works across countries (original behavior)
             for country_code in countries[:3]:  # Limit to 3 countries
                 try:
                     response = requests.get(

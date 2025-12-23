@@ -122,19 +122,19 @@ export default function ChatInterface({
   if (!isOpen) return null;
 
   return (
-    <Card className="fixed left-4 top-1/2 -translate-y-1/2 w-[500px] h-[700px] max-h-[85vh] flex flex-col shadow-2xl border-2 z-50 bg-[#1A1A2E]/95 backdrop-blur-sm border-[#00FFC0]/30">
+    <Card className="fixed left-4 top-1/2 -translate-y-1/2 w-[500px] h-[700px] max-h-[85vh] flex flex-col shadow-2xl border-2 z-50 bg-[#1A1A2E]/95 backdrop-blur-sm border-[#4fc3ae]/30">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#00FFC0]/20">
+      <div className="flex items-center justify-between p-4 border-b border-[#4fc3ae]/20">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-[#00FFC0]" />
-            <h2 className="font-semibold text-lg text-[#00FFC0]">
+            <MessageCircle className="h-5 w-5 text-[#4fc3ae]" />
+            <h2 className="font-semibold text-lg text-[#4fc3ae]">
               Research Chatbot
             </h2>
           </div>
           <div className="flex items-center gap-2 ml-7">
-            <div className="h-2 w-2 rounded-full bg-[#00FFC0] animate-pulse"></div>
-            <span className="text-xs text-[#00FFC0]">Online</span>
+            <div className="h-2 w-2 rounded-full bg-[#4fc3ae] animate-pulse"></div>
+            <span className="text-xs text-[#4fc3ae]">Online</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ export default function ChatInterface({
                 },
               ]);
             }}
-            className="h-8 border-[#00FFC0]/50 text-white hover:bg-[#00FFC0]/10 hover:border-[#00FFC0]"
+            className="h-8 border-[#4fc3ae]/50 text-white hover:bg-[#4fc3ae]/10 hover:border-[#4fc3ae]"
           >
             Reset
           </Button>
@@ -159,7 +159,7 @@ export default function ChatInterface({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8 text-white hover:bg-[#00FFC0]/10"
+            className="h-8 w-8 text-white hover:bg-[#4fc3ae]/10"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -178,15 +178,15 @@ export default function ChatInterface({
             <div
               className={`max-w-[80%] rounded-lg px-4 py-2 ${
                 message.isUser
-                  ? "bg-[#00FFC0] text-white"
+                  ? "bg-[#4fc3ae] text-white"
                   : "bg-[#2C3E50] text-white"
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.text}</p>
               {message.hasChart && message.chartConfig && (
-                <div className="mt-3 p-3 bg-[#1A1A2E] rounded border border-[#00FFC0]/20">
+                <div className="mt-3 p-3 bg-[#1A1A2E] rounded border border-[#4fc3ae]/20">
                   {message.chartConfig.title && (
-                    <p className="font-semibold text-sm mb-2 text-[#00FFC0]">
+                    <p className="font-semibold text-sm mb-2 text-[#4fc3ae]">
                       {message.chartConfig.title}
                     </p>
                   )}
@@ -224,7 +224,7 @@ export default function ChatInterface({
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-[#00FFC0]/20">
+      <div className="p-4 border-t border-[#4fc3ae]/20">
         <div className="flex gap-2 items-center">
           <Input
             ref={inputRef}
@@ -233,12 +233,12 @@ export default function ChatInterface({
             onKeyPress={handleKeyPress}
             placeholder="Ask about research data..."
             disabled={isLoading}
-            className="flex-1 bg-[#2C3E50] border-[#00FFC0]/50 text-white placeholder:text-[#A0A0A0] focus:border-[#00FFC0] focus:ring-[#00FFC0]/20"
+            className="flex-1 bg-[#2C3E50] border-[#4fc3ae]/50 text-white placeholder:text-[#A0A0A0] focus:border-[#4fc3ae] focus:ring-[#4fc3ae]/20"
           />
           <Button
             onClick={sendMessage}
             disabled={!inputValue.trim() || isLoading}
-            className="bg-[#00FFC0] text-white hover:bg-[#00FFC0]/90 disabled:opacity-50 disabled:cursor-not-allowed px-6"
+            className="bg-[#4fc3ae] text-white hover:bg-[#4fc3ae]/90 disabled:opacity-50 disabled:cursor-not-allowed px-6"
           >
             Send
           </Button>

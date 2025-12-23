@@ -23,7 +23,7 @@ interface ChartProps {
 }
 
 const COLORS = [
-  "#00FFC0",
+  "#4fc3ae",
   "#00D4AA",
   "#00B894",
   "#00A085",
@@ -57,7 +57,7 @@ export default function ChatChart({ type, data, title }: ChartProps) {
       <div className="w-full h-64 mt-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#00FFC0/20" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#4fc3ae/20" />
             <XAxis
               dataKey="name"
               angle={-45}
@@ -75,12 +75,12 @@ export default function ChatChart({ type, data, title }: ChartProps) {
               }}
               contentStyle={{
                 backgroundColor: "#1A1A2E",
-                border: "1px solid #00FFC0",
+                border: "1px solid #4fc3ae",
                 borderRadius: "6px",
-                color: "#00FFC0",
+                color: "#4fc3ae",
               }}
             />
-            <Bar dataKey="value" fill="#00FFC0" />
+            <Bar dataKey="value" fill="#4fc3ae" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -92,7 +92,7 @@ export default function ChatChart({ type, data, title }: ChartProps) {
       <div className="w-full h-64 mt-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#00FFC0/20" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#4fc3ae/20" />
             <XAxis
               dataKey="name"
               angle={-45}
@@ -106,15 +106,15 @@ export default function ChatChart({ type, data, title }: ChartProps) {
               formatter={(value: any) => [value.toLocaleString(), "Works"]}
               contentStyle={{
                 backgroundColor: "#1A1A2E",
-                border: "1px solid #00FFC0",
+                border: "1px solid #4fc3ae",
                 borderRadius: "6px",
-                color: "#00FFC0",
+                color: "#4fc3ae",
               }}
             />
             <Line
               type="monotone"
               dataKey="value"
-              stroke="#00FFC0"
+              stroke="#4fc3ae"
               strokeWidth={2}
             />
           </LineChart>
@@ -151,9 +151,9 @@ export default function ChatChart({ type, data, title }: ChartProps) {
               formatter={(value: any) => [value.toLocaleString(), "Works"]}
               contentStyle={{
                 backgroundColor: "#1A1A2E",
-                border: "1px solid #00FFC0",
+                border: "1px solid #4fc3ae",
                 borderRadius: "6px",
-                color: "#00FFC0",
+                color: "#4fc3ae",
               }}
             />
           </PieChart>
@@ -167,7 +167,7 @@ export default function ChatChart({ type, data, title }: ChartProps) {
     <div className="w-full h-64 mt-2">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#00FFC0/20" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#4fc3ae/20" />
           <XAxis
             dataKey="name"
             angle={-45}
@@ -181,12 +181,12 @@ export default function ChatChart({ type, data, title }: ChartProps) {
             formatter={(value: any) => [value.toLocaleString(), "Works"]}
             contentStyle={{
               backgroundColor: "#1A1A2E",
-              border: "1px solid #00FFC0",
+              border: "1px solid #4fc3ae",
               borderRadius: "6px",
-              color: "#00FFC0",
+              color: "#4fc3ae",
             }}
           />
-          <Bar dataKey="value" fill="#00FFC0" />
+          <Bar dataKey="value" fill="#4fc3ae" />
         </BarChart>
       </ResponsiveContainer>
     </div>
