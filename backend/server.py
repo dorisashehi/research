@@ -1,21 +1,36 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 import pandas as pd
 import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import sys
+import traceback
 
 # Add chatbot directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'chatbot'))
 from intent_classifier import classify_query
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI(
+    title="OpenAlex Physical Sciences API with Chatbot",
+    version="1.3",
+    description="API for exploring global research trends with AI-powered chatbot"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify actual origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 DATA_DIR = "data"
-
 data_cache = None
 
 
@@ -39,7 +54,7 @@ def load_data():
         if os.path.exists(subfield_topics_path):
             data_cache['subfield_topics'] = pd.read_csv(subfield_topics_path)
 
-        # --- NEW: Load Yearly Trends Data ---
+        # Load Yearly Trends Data
         yearly_sf_path = os.path.join(DATA_DIR, 'yearly_subfields.csv')
         if os.path.exists(yearly_sf_path):
             data_cache['yearly_subfields'] = pd.read_csv(yearly_sf_path)
@@ -61,9 +76,19 @@ def reload_data():
     return load_data()
 
 
-@app.route('/')
-def home():
-    return jsonify({
+# Pydantic models for request/response
+class ClassifyRequest(BaseModel):
+    query: str = Field(..., description="Query to classify")
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., description="Chat message")
+    country: Optional[str] = Field(None, description="Optional country filter")
+
+
+@app.get('/')
+async def home():
+    return {
         'name': 'OpenAlex Physical Sciences API with Chatbot',
         'version': '1.3',
         'endpoints': {
@@ -74,125 +99,114 @@ def home():
             '/api/chat': 'Send a message to the chatbot and get a response',
             '/api/classify': 'Classify a query to determine intent and chart type'
         }
-    })
+    }
 
 
-@app.route('/api/health')
-def health():
+@app.get('/api/health')
+async def health():
     data = load_data()
     if data is None:
-        return jsonify({'status': 'error', 'message': 'Data files not found'}), 500
-    return jsonify({'status': 'healthy', 'data_loaded': True})
+        raise HTTPException(status_code=500, detail='Data files not found')
+    return {'status': 'healthy', 'data_loaded': True, 'intent_classifier': 'enabled'}
 
 
 # --- EXISTING ENDPOINTS ---
-@app.route('/api/fields')
-def get_fields():
+@app.get('/api/fields')
+async def get_fields():
     data = load_data()
-    return jsonify({'count': len(data['fields']), 'data': data['fields'].to_dict('records')})
+    return {'count': len(data['fields']), 'data': data['fields'].to_dict('records')}
 
-@app.route('/api/subfields/graph')
-def get_subfields_graph():
+
+@app.get('/api/subfields/graph')
+async def get_subfields_graph():
     """Standard All-Time Graph"""
     data = load_data()
-    if data is None or 'subfields' not in data: return jsonify({'error': 'Data not loaded'}), 500
+    if data is None or 'subfields' not in data:
+        raise HTTPException(status_code=500, detail='Data not loaded')
     subfields_df = data['subfields'].head(10)
     return generate_graph_from_df(subfields_df)
 
-@app.route('/api/topics/subfield/<subfield_id>')
-def get_topics_by_subfield(subfield_id):
+
+@app.get('/api/topics/subfield/{subfield_id}')
+async def get_topics_by_subfield(subfield_id: int):
     """All-Time Topics for a Subfield"""
     data = load_data()
-    if data is None or 'subfield_topics' not in data: return jsonify({'error': 'Data not loaded'}), 500
-    try:
-        sf_id = int(subfield_id)
-        topics_df = data['subfield_topics']
-        matching = topics_df[topics_df['subfield_id'] == sf_id]
-        if len(matching) == 0: return jsonify({'error': 'No topics found'}), 404
-        return generate_graph_from_df(matching)
-    except ValueError:
-        return jsonify({'error': 'Invalid ID'}), 400
+    if data is None or 'subfield_topics' not in data:
+        raise HTTPException(status_code=500, detail='Data not loaded')
+
+    topics_df = data['subfield_topics']
+    matching = topics_df[topics_df['subfield_id'] == subfield_id]
+    if len(matching) == 0:
+        raise HTTPException(status_code=404, detail='No topics found')
+    return generate_graph_from_df(matching)
 
 
 # --- TRENDS ENDPOINTS ---
-
-@app.route('/api/trends/years')
-def get_available_years():
+@app.get('/api/trends/years')
+async def get_available_years():
     """Returns list of years available in the dataset."""
     data = load_data()
     if data is None or 'yearly_subfields' not in data:
-        return jsonify({'error': 'Yearly data not found. Run save_data_csv.py first.'}), 404
+        raise HTTPException(
+            status_code=404,
+            detail='Yearly data not found. Run save_data_csv.py first.'
+        )
     years = sorted(data['yearly_subfields']['year'].unique().tolist())
-    return jsonify({'years': years})
+    return {'years': years}
 
 
-@app.route('/api/trends/graph')
-def get_yearly_graph():
+@app.get('/api/trends/graph')
+async def get_yearly_graph(year: int = Query(..., description="Year to get data for")):
     """Returns subfields graph for a specific year."""
-    year_param = request.args.get('year')
-    if not year_param: return jsonify({'error': 'Missing "year" parameter'}), 400
-
     data = load_data()
-    if data is None or 'yearly_subfields' not in data: return jsonify({'error': 'Yearly data not found'}), 404
+    if data is None or 'yearly_subfields' not in data:
+        raise HTTPException(status_code=404, detail='Yearly data not found')
 
-    try:
-        year = int(year_param)
-        df = data['yearly_subfields']
-        yearly_df = df[df['year'] == year]
+    df = data['yearly_subfields']
+    yearly_df = df[df['year'] == year]
 
-        if yearly_df.empty: return jsonify({'error': f'No data found for year {year}'}), 404
+    if yearly_df.empty:
+        raise HTTPException(status_code=404, detail=f'No data found for year {year}')
 
-        graph_data = generate_graph_from_df(yearly_df)
-        graph_data['year'] = year
-        return jsonify(graph_data)
-
-    except ValueError:
-        return jsonify({'error': 'Year must be a number'}), 400
+    graph_data = generate_graph_from_df(yearly_df)
+    graph_data['year'] = year
+    return graph_data
 
 
-@app.route('/api/trends/topics')
-def get_yearly_topics_graph():
+@app.get('/api/trends/topics')
+async def get_yearly_topics_graph(
+    year: int = Query(..., description="Year to get data for"),
+    subfield_id: int = Query(..., description="Subfield ID")
+):
     """
     Returns topics graph for a specific subfield AND year.
     Usage: /api/trends/topics?year=2023&subfield_id=3315
     """
-    year_param = request.args.get('year')
-    subfield_id_param = request.args.get('subfield_id')
-
-    if not year_param or not subfield_id_param:
-        return jsonify({'error': 'Missing "year" or "subfield_id" parameter'}), 400
-
     data = load_data()
     if data is None or 'yearly_topics' not in data:
-        return jsonify({'error': 'Yearly topics data not found'}), 404
+        raise HTTPException(status_code=404, detail='Yearly topics data not found')
 
-    try:
-        year = int(year_param)
-        # Convert subfield_id to string first to handle potential type mismatches in CSV
-        subfield_id = int(subfield_id_param)
+    df = data['yearly_topics']
 
-        df = data['yearly_topics']
+    # Filter by both Year and Subfield ID
+    filtered_df = df[
+        (df['year'] == year) &
+        (df['subfield_id'] == subfield_id)
+    ]
 
-        # Filter by both Year and Subfield ID
-        filtered_df = df[
-            (df['year'] == year) &
-            (df['subfield_id'] == subfield_id)
-        ]
+    if filtered_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail=f'No topics found for subfield {subfield_id} in {year}'
+        )
 
-        if filtered_df.empty:
-            return jsonify({'error': f'No topics found for subfield {subfield_id} in {year}'}), 404
-
-        graph_data = generate_graph_from_df(filtered_df)
-        graph_data['year'] = year
-        graph_data['subfield_id'] = subfield_id
-        return jsonify(graph_data)
-
-    except ValueError:
-        return jsonify({'error': 'Parameters must be numbers'}), 400
+    graph_data = generate_graph_from_df(filtered_df)
+    graph_data['year'] = year
+    graph_data['subfield_id'] = subfield_id
+    return graph_data
 
 
 # --- HELPER FUNCTIONS FOR DATA ACCESS ---
-
 def _get_countries_data():
     """Helper function to get countries data (used by endpoints and chatbot)"""
     countries_dir = os.path.join(DATA_DIR, 'countries')
@@ -269,78 +283,61 @@ def _get_country_data_internal(country_code):
 
 
 # --- COUNTRY ENDPOINTS ---
-
-@app.route('/api/countries')
-def get_countries():
+@app.get('/api/countries')
+async def get_countries():
     countries = _get_countries_data()
     if countries is None:
-        return jsonify({'error': 'Countries data not found'}), 404
-    return jsonify({'count': len(countries), 'data': countries})
+        raise HTTPException(status_code=404, detail='Countries data not found')
+    return {'count': len(countries), 'data': countries}
 
-@app.route('/api/countries/<country_code>/subfields')
-def get_country_subfields(country_code):
+
+@app.get('/api/countries/{country_code}/subfields')
+async def get_country_subfields(country_code: str):
     subfields = _get_country_subfields_data(country_code)
     if subfields is None:
-        return jsonify({'error': f'No data found for country {country_code}'}), 404
-    return jsonify({'count': len(subfields), 'data': subfields})
+        raise HTTPException(
+            status_code=404,
+            detail=f'No data found for country {country_code}'
+        )
+    return {'count': len(subfields), 'data': subfields}
 
-@app.route('/api/countries/<country_code>/topics')
-def get_country_topics(country_code):
+
+@app.get('/api/countries/{country_code}/topics')
+async def get_country_topics(
+    country_code: str,
+    subfield_id: Optional[int] = Query(None, description="Optional subfield ID filter")
+):
     country_dir = os.path.join(DATA_DIR, 'countries', country_code.upper())
     topics_path = os.path.join(country_dir, 'topics.csv')
-    subfield_id = request.args.get('subfield_id')
 
     if not os.path.exists(topics_path):
-        return jsonify({'error': f'No topics data found for country {country_code}'}), 404
+        raise HTTPException(
+            status_code=404,
+            detail=f'No topics data found for country {country_code}'
+        )
 
     df = pd.read_csv(topics_path)
 
     if subfield_id:
-        df = df[df['subfield_id'] == int(subfield_id)]
+        df = df[df['subfield_id'] == subfield_id]
         if df.empty:
-            return jsonify({'error': f'No topics found for subfield {subfield_id}'}), 404
+            raise HTTPException(
+                status_code=404,
+                detail=f'No topics found for subfield {subfield_id}'
+            )
 
-    return jsonify({'count': len(df), 'data': df.to_dict('records')})
+    return {'count': len(df), 'data': df.to_dict('records')}
 
-@app.route('/api/countries/<country_code>/data')
-def get_country_data(country_code):
-    country_code = country_code.upper()
-    country_dir = os.path.join(DATA_DIR, 'countries', country_code)
-    subfields_path = os.path.join(country_dir, 'subfields.csv')
-    topics_path = os.path.join(country_dir, 'topics.csv')
 
-    if not os.path.exists(subfields_path):
-        return jsonify({'error': f'No data found for country {country_code}'}), 404
-
-    try:
-        subfields_df = pd.read_csv(subfields_path)
-        topics_df = pd.read_csv(topics_path) if os.path.exists(topics_path) else pd.DataFrame()
-
-        subfields_list = []
-        for _, row in subfields_df.iterrows():
-            subfield_id = int(row['id'])
-            subfield_topics = []
-
-            if not topics_df.empty and 'subfield_id' in topics_df.columns:
-                matching_topics = topics_df[topics_df['subfield_id'] == subfield_id]
-                if not matching_topics.empty:
-                    topic_records = matching_topics[['id', 'name', 'works_count']].to_dict('records')
-                    subfield_topics = topic_records[:5]
-
-            subfields_list.append({
-                'id': str(subfield_id),
-                'name': str(row['name']),
-                'works_count': int(row['works_count']),
-                'topics': subfield_topics
-            })
-
-        return jsonify({
-            'country_code': country_code,
-            'subfields': subfields_list
-        })
-    except Exception as e:
-        import traceback
-        return jsonify({'error': f'Error reading data for {country_code}: {str(e)}', 'traceback': traceback.format_exc()}), 500
+@app.get('/api/countries/{country_code}/data')
+async def get_country_data(country_code: str):
+    country_data = _get_country_data_internal(country_code)
+    if country_data is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f'No data found for country {country_code}'
+        )
+    return country_data
 
 
 # --- HELPER FUNCTION ---
@@ -348,7 +345,8 @@ def generate_graph_from_df(df):
     nodes = []
     names = []
 
-    if df.empty: return {'nodes': [], 'links': []}
+    if df.empty:
+        return {'nodes': [], 'links': []}
 
     # 1. Build Nodes
     for _, row in df.iterrows():
@@ -392,120 +390,56 @@ def generate_graph_from_df(df):
 
 
 # --- CHATBOT ENDPOINTS ---
-
-@app.route('/api/classify', methods=['POST'])
-def classify_intent():
+@app.post('/api/classify')
+async def classify_intent(request: ClassifyRequest):
     """
     This endpoint just classifies a query - it doesn't generate a full response.
     Useful for testing or when you just want to know what type of chart is needed.
-
-    Example request:
-    {
-        "query": "Show me the top 10 subfields in US"
-    }
-
-    Example response:
-    {
-        "success": true,
-        "query": "Show me the top 10 subfields in US",
-        "intent": "ranking",
-        "confidence": 0.2,
-        "chart_type": "bar",
-        "requires_chart": true,
-        "parameters": {
-            "countries": ["US"],
-            "years": [],
-            "limit": 10
-        }
-    }
     """
     try:
-        # Get the data from the request
-        data = request.get_json()
-
-        # Check if the query field exists
-        if not data or 'query' not in data:
-            return jsonify({
-                'error': 'Please provide a "query" field in your request'
-            }), 400
-
-        query = data['query']
+        query = request.query
 
         # Make sure the query is valid
         if not isinstance(query, str) or not query.strip():
-            return jsonify({
-                'error': 'Query must be a non-empty string'
-            }), 400
+            raise HTTPException(
+                status_code=400,
+                detail='Query must be a non-empty string'
+            )
 
         # Classify the query using our classifier
         classification = classify_query(query)
 
         # Return the results
-        return jsonify({
+        return {
             'success': True,
             'query': query,
-            **classification  # Add all classification results
-        })
+            **classification
+        }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        # If something goes wrong, return an error
-        return jsonify({
-            'error': f'Something went wrong: {str(e)}'
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail=f'Something went wrong: {str(e)}'
+        )
 
 
-@app.route('/api/chat', methods=['POST'])
-def chat():
+@app.post('/api/chat')
+async def chat(request: ChatRequest):
     """
     This is the main chat endpoint. Users send messages here and get responses.
-
-    Example request:
-    {
-        "message": "Show me the top 10 subfields in Physical Sciences",
-        "country": "US"  // optional
-    }
-
-    Example response:
-    {
-        "response": "I'll show you the rankings. Fetching the top items...",
-        "intent": {
-            "intent": "ranking",
-            "confidence": 0.2,
-            "chart_type": "bar",
-            "requires_chart": true,
-            "parameters": {
-                "countries": ["US"],
-                "years": [],
-                "limit": 10
-            }
-        },
-        "has_chart": true,
-        "chart_config": {
-            "type": "bar",
-            "data": null,
-            "title": "Top 10 Rankings",
-            "description": "This bar chart shows items ranked by their values."
-        }
-    }
     """
     try:
-        # Get the data from the request
-        data = request.get_json()
-
-        # Check if the message field exists
-        if not data or 'message' not in data:
-            return jsonify({
-                'error': 'Please provide a "message" field in your request'
-            }), 400
-
-        message = data['message']
-        country = data.get('country', None)  # Optional country filter
+        message = request.message
+        country = request.country
 
         # Make sure the message is valid
         if not isinstance(message, str) or not message.strip():
-            return jsonify({
-                'error': 'Message must be a non-empty string'
-            }), 400
+            raise HTTPException(
+                status_code=400,
+                detail='Message must be a non-empty string'
+            )
 
         # Classify the message to understand what the user wants
         classification = classify_query(message)
@@ -547,23 +481,21 @@ def chat():
                 'description': generate_chart_description(classification)
             }
 
-        return jsonify(response)
+        return response
 
+    except HTTPException:
+        raise
     except Exception as e:
-        # If something goes wrong, return an error with more details
-        import traceback
         error_details = traceback.format_exc()
         print(f"Error in chat endpoint: {error_details}")
-        return jsonify({
-            'error': f'Something went wrong: {str(e)}',
-            'details': error_details if app.debug else None
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail=f'Something went wrong: {str(e)}'
+        )
 
 
 def generate_response(message, classification):
-    """
-    Generate a response message based on what the user asked for.
-    """
+    """Generate a response message based on what the user asked for."""
     intent = classification['intent']
 
     # If no chart is needed, just acknowledge the question
@@ -614,7 +546,7 @@ def generate_chart_title(message, classification):
             title = f"Subfield Comparison: {' vs '.join(subfield_names)}{country_text}"
         elif subfields and countries:
             # Subfield-specific comparison across countries
-            subfield_name = subfields[0].title()  # Capitalize first letter
+            subfield_name = subfields[0].title()
             title = f"{subfield_name} Comparison: {', '.join(countries)}"
         elif countries:
             # General country comparison
@@ -688,7 +620,6 @@ def fetch_chart_data(classification, country=None):
                         }
                 except Exception as e:
                     print(f"Error fetching country ranking data: {e}")
-                    import traceback
                     print(traceback.format_exc())
                     return None
             else:
@@ -722,7 +653,6 @@ def fetch_chart_data(classification, country=None):
                 try:
                     all_subfields = _get_country_subfields_data(country_code)
                     if all_subfields:
-
                         # Find each subfield mentioned
                         for subfield_name in subfield_names[:5]:  # Limit to 5 subfields
                             subfield_lower = subfield_name.lower()
@@ -760,7 +690,6 @@ def fetch_chart_data(classification, country=None):
                     try:
                         subfields = _get_country_subfields_data(country_code)
                         if subfields:
-
                             # Find the subfield by name (case-insensitive, partial match)
                             matching_subfield = None
                             subfield_lower = subfield_name.lower()
@@ -864,7 +793,6 @@ def fetch_chart_data(classification, country=None):
 
     except Exception as e:
         print(f"Error in fetch_chart_data: {e}")
-        import traceback
         print(traceback.format_exc())
         return None
 
@@ -872,6 +800,9 @@ def fetch_chart_data(classification, country=None):
 
 
 if __name__ == '__main__':
+    import uvicorn
     print("Starting OpenAlex Physical Sciences API with Chatbot on port 5000...")
     print("Chatbot endpoints: /api/chat, /api/classify")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("API docs available at: http://localhost:5000/docs")
+    # Use import string for reload to work properly
+    uvicorn.run("server:app", host='0.0.0.0', port=5000, reload=True)
