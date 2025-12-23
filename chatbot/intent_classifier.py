@@ -149,10 +149,20 @@ class IntentClassifier:
     def _pick_chart_type(self, intent, query):
         """
         Based on what the user wants, pick the best chart type.
-        For example, comparisons work well with bar charts,
-        trends work well with line charts, etc.
+        First tries RAG-based selection, falls back to keyword matching.
         """
-        # First, check if user specifically asked for a chart type
+        try:
+            from rag_chart_selector import select_chart_type_with_rag
+
+            intent_str = intent.value if hasattr(intent, 'value') else str(intent)
+            rag_result = select_chart_type_with_rag(query, intent_str)
+
+            if rag_result.get('confidence', 0) > 0.6:
+                return rag_result.get('chart_type', 'bar')
+        except Exception as e:
+            print(f"RAG chart selection failed, using fallback: {e}")
+
+        # Fallback to keyword matching
         if 'bar' in query or 'column' in query:
             return 'bar'
         if 'line' in query or 'trend' in query:
@@ -162,17 +172,17 @@ class IntentClassifier:
         if 'scatter' in query:
             return 'scatter'
 
-        # Otherwise, pick based on intent type
+        # Pick based on intent type
         if intent == ChartIntent.COMPARISON:
-            return 'bar'  # Bar charts are good for comparing
+            return 'bar'
         elif intent == ChartIntent.TREND:
-            return 'line'  # Line charts show trends over time
+            return 'line'
         elif intent == ChartIntent.DISTRIBUTION:
-            return 'pie'  # Pie charts show distributions
+            return 'pie'
         elif intent == ChartIntent.RANKING:
-            return 'bar'  # Bar charts are good for rankings
+            return 'bar'
         else:
-            return 'bar'  # Default to bar chart
+            return 'bar'
 
     def _no_chart_needed(self):
         """Return a response saying no chart is needed"""

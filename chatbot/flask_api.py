@@ -193,9 +193,24 @@ def chat():
         if classification['requires_chart']:
             # Add the original query to classification for context
             classification['original_query'] = message
+
+            # Fetch chart data
             chart_data = fetch_chart_data(classification, country)
+
+            # Validate and adjust chart type based on fetched data
+            chart_type = classification['chart_type']
+            if chart_data:
+                try:
+                    from rag_chart_selector import validate_chart_type_after_fetch
+                    validation = validate_chart_type_after_fetch(chart_type, chart_data)
+                    if validation.get('adjusted'):
+                        chart_type = validation['chart_type']
+                        print(f"Chart type adjusted: {validation.get('reason')}")
+                except Exception as e:
+                    print(f"Chart validation failed: {e}")
+
             response['chart_config'] = {
-                'type': classification['chart_type'],
+                'type': chart_type,
                 'data': chart_data,
                 'title': generate_chart_title(message, classification),
                 'description': generate_chart_description(classification)

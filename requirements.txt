@@ -24,6 +24,7 @@ chromadb
 python-dotenv
 sentence-transformers
 torch
+groq
 
 # Flask API dependencies (Milestone 7)
 flask
