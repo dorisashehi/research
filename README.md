@@ -2,6 +2,14 @@
 
 A comprehensive interactive platform for exploring global research trends in science and technology using data from OpenAlex. The platform features a 3D interactive globe visualization and an AI-powered chatbot for natural language queries about research data.
 
+## 🎥 Video Walkthrough
+
+Watch a demonstration of the platform in action:
+
+[![Video Walkthrough](https://img.youtube.com/vi/bjQb1xpxX7s/maxresdefault.jpg)](https://youtu.be/bjQb1xpxX7s)
+
+**Direct Link**: [https://youtu.be/bjQb1xpxX7s](https://youtu.be/bjQb1xpxX7s)
+
 ## 📋 Table of Contents
 
 - [Project Description](#project-description)
