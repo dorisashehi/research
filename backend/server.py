@@ -1,50 +1,397 @@
-"""
-This is the Flask API for our chatbot.
-It receives questions from users and figures out what kind of chart they need.
-"""
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import pandas as pd
 import os
-import requests
-from dotenv import load_dotenv
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import sys
+
+# Add chatbot directory to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'chatbot'))
 from intent_classifier import classify_query
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Create the Flask app
 app = Flask(__name__)
-CORS(app)  # Allow requests from other domains (like our frontend)
+CORS(app)
 
-# Get the port number from environment, or use 5050 as default
-PORT = int(os.getenv('PORT', 5050))
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:5000')
+DATA_DIR = "data"
+
+data_cache = None
+
+
+def load_data():
+    global data_cache
+
+    if data_cache is not None:
+        return data_cache
+
+    try:
+        # Initialize with base files
+        data_cache = {
+            'fields': pd.read_csv(os.path.join(DATA_DIR, 'fields.csv')),
+            'subfields': pd.read_csv(os.path.join(DATA_DIR, 'top_subfields_us.csv')),
+            'funders': pd.read_csv(os.path.join(DATA_DIR, 'subfield_funders_us.csv')),
+            'topics': pd.read_csv(os.path.join(DATA_DIR, 'top_topics_us.csv'))
+        }
+
+        # Load subfield topics data
+        subfield_topics_path = os.path.join(DATA_DIR, 'subfield_topics_us.csv')
+        if os.path.exists(subfield_topics_path):
+            data_cache['subfield_topics'] = pd.read_csv(subfield_topics_path)
+
+        # --- NEW: Load Yearly Trends Data ---
+        yearly_sf_path = os.path.join(DATA_DIR, 'yearly_subfields.csv')
+        if os.path.exists(yearly_sf_path):
+            data_cache['yearly_subfields'] = pd.read_csv(yearly_sf_path)
+
+        yearly_tp_path = os.path.join(DATA_DIR, 'yearly_subfield_topics.csv')
+        if os.path.exists(yearly_tp_path):
+            data_cache['yearly_topics'] = pd.read_csv(yearly_tp_path)
+
+        print("✓ Data loaded successfully")
+        return data_cache
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return None
+
+
+def reload_data():
+    global data_cache
+    data_cache = None
+    return load_data()
 
 
 @app.route('/')
 def home():
-    """This is the home page of our API"""
     return jsonify({
-        'name': 'Chatbot API with Intent Classification',
-        'version': '1.0.0',
+        'name': 'OpenAlex Physical Sciences API with Chatbot',
+        'version': '1.3',
         'endpoints': {
-            '/api/health': 'Check if the API is working',
-            '/api/chat': 'Send a message and get a response',
-            '/api/classify': 'Just classify a query (without full response)'
+            '/api/health': 'Check API health',
+            '/api/trends/years': 'Get list of available years',
+            '/api/trends/graph?year=2023': 'Get subfields graph for a specific year',
+            '/api/trends/topics?year=2023&subfield_id=X': 'Get topics graph for a subfield in a specific year',
+            '/api/chat': 'Send a message to the chatbot and get a response',
+            '/api/classify': 'Classify a query to determine intent and chart type'
         }
     })
 
 
 @app.route('/api/health')
 def health():
-    """Check if the API is running and healthy"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'chatbot-api',
-        'intent_classifier': 'enabled'
-    })
+    data = load_data()
+    if data is None:
+        return jsonify({'status': 'error', 'message': 'Data files not found'}), 500
+    return jsonify({'status': 'healthy', 'data_loaded': True})
 
+
+# --- EXISTING ENDPOINTS ---
+@app.route('/api/fields')
+def get_fields():
+    data = load_data()
+    return jsonify({'count': len(data['fields']), 'data': data['fields'].to_dict('records')})
+
+@app.route('/api/subfields/graph')
+def get_subfields_graph():
+    """Standard All-Time Graph"""
+    data = load_data()
+    if data is None or 'subfields' not in data: return jsonify({'error': 'Data not loaded'}), 500
+    subfields_df = data['subfields'].head(10)
+    return generate_graph_from_df(subfields_df)
+
+@app.route('/api/topics/subfield/<subfield_id>')
+def get_topics_by_subfield(subfield_id):
+    """All-Time Topics for a Subfield"""
+    data = load_data()
+    if data is None or 'subfield_topics' not in data: return jsonify({'error': 'Data not loaded'}), 500
+    try:
+        sf_id = int(subfield_id)
+        topics_df = data['subfield_topics']
+        matching = topics_df[topics_df['subfield_id'] == sf_id]
+        if len(matching) == 0: return jsonify({'error': 'No topics found'}), 404
+        return generate_graph_from_df(matching)
+    except ValueError:
+        return jsonify({'error': 'Invalid ID'}), 400
+
+
+# --- TRENDS ENDPOINTS ---
+
+@app.route('/api/trends/years')
+def get_available_years():
+    """Returns list of years available in the dataset."""
+    data = load_data()
+    if data is None or 'yearly_subfields' not in data:
+        return jsonify({'error': 'Yearly data not found. Run save_data_csv.py first.'}), 404
+    years = sorted(data['yearly_subfields']['year'].unique().tolist())
+    return jsonify({'years': years})
+
+
+@app.route('/api/trends/graph')
+def get_yearly_graph():
+    """Returns subfields graph for a specific year."""
+    year_param = request.args.get('year')
+    if not year_param: return jsonify({'error': 'Missing "year" parameter'}), 400
+
+    data = load_data()
+    if data is None or 'yearly_subfields' not in data: return jsonify({'error': 'Yearly data not found'}), 404
+
+    try:
+        year = int(year_param)
+        df = data['yearly_subfields']
+        yearly_df = df[df['year'] == year]
+
+        if yearly_df.empty: return jsonify({'error': f'No data found for year {year}'}), 404
+
+        graph_data = generate_graph_from_df(yearly_df)
+        graph_data['year'] = year
+        return jsonify(graph_data)
+
+    except ValueError:
+        return jsonify({'error': 'Year must be a number'}), 400
+
+
+@app.route('/api/trends/topics')
+def get_yearly_topics_graph():
+    """
+    Returns topics graph for a specific subfield AND year.
+    Usage: /api/trends/topics?year=2023&subfield_id=3315
+    """
+    year_param = request.args.get('year')
+    subfield_id_param = request.args.get('subfield_id')
+
+    if not year_param or not subfield_id_param:
+        return jsonify({'error': 'Missing "year" or "subfield_id" parameter'}), 400
+
+    data = load_data()
+    if data is None or 'yearly_topics' not in data:
+        return jsonify({'error': 'Yearly topics data not found'}), 404
+
+    try:
+        year = int(year_param)
+        # Convert subfield_id to string first to handle potential type mismatches in CSV
+        subfield_id = int(subfield_id_param)
+
+        df = data['yearly_topics']
+
+        # Filter by both Year and Subfield ID
+        filtered_df = df[
+            (df['year'] == year) &
+            (df['subfield_id'] == subfield_id)
+        ]
+
+        if filtered_df.empty:
+            return jsonify({'error': f'No topics found for subfield {subfield_id} in {year}'}), 404
+
+        graph_data = generate_graph_from_df(filtered_df)
+        graph_data['year'] = year
+        graph_data['subfield_id'] = subfield_id
+        return jsonify(graph_data)
+
+    except ValueError:
+        return jsonify({'error': 'Parameters must be numbers'}), 400
+
+
+# --- HELPER FUNCTIONS FOR DATA ACCESS ---
+
+def _get_countries_data():
+    """Helper function to get countries data (used by endpoints and chatbot)"""
+    countries_dir = os.path.join(DATA_DIR, 'countries')
+    if not os.path.exists(countries_dir):
+        return None
+
+    countries = []
+    for country_code in os.listdir(countries_dir):
+        country_path = os.path.join(countries_dir, country_code)
+        if os.path.isdir(country_path):
+            subfields_path = os.path.join(country_path, 'subfields.csv')
+            if os.path.exists(subfields_path):
+                df = pd.read_csv(subfields_path)
+                total_works = df['works_count'].sum() if not df.empty else 0
+                countries.append({
+                    'code': country_code,
+                    'subfields_count': len(df),
+                    'total_works': int(total_works)
+                })
+    return countries
+
+
+def _get_country_subfields_data(country_code):
+    """Helper function to get subfields data for a country"""
+    country_dir = os.path.join(DATA_DIR, 'countries', country_code.upper())
+    subfields_path = os.path.join(country_dir, 'subfields.csv')
+
+    if not os.path.exists(subfields_path):
+        return None
+
+    df = pd.read_csv(subfields_path)
+    return df.to_dict('records')
+
+
+def _get_country_data_internal(country_code):
+    """Helper function to get full country data"""
+    country_code = country_code.upper()
+    country_dir = os.path.join(DATA_DIR, 'countries', country_code)
+    subfields_path = os.path.join(country_dir, 'subfields.csv')
+    topics_path = os.path.join(country_dir, 'topics.csv')
+
+    if not os.path.exists(subfields_path):
+        return None
+
+    try:
+        subfields_df = pd.read_csv(subfields_path)
+        topics_df = pd.read_csv(topics_path) if os.path.exists(topics_path) else pd.DataFrame()
+
+        subfields_list = []
+        for _, row in subfields_df.iterrows():
+            subfield_id = int(row['id'])
+            subfield_topics = []
+
+            if not topics_df.empty and 'subfield_id' in topics_df.columns:
+                matching_topics = topics_df[topics_df['subfield_id'] == subfield_id]
+                if not matching_topics.empty:
+                    topic_records = matching_topics[['id', 'name', 'works_count']].to_dict('records')
+                    subfield_topics = topic_records[:5]
+
+            subfields_list.append({
+                'id': str(subfield_id),
+                'name': str(row['name']),
+                'works_count': int(row['works_count']),
+                'topics': subfield_topics
+            })
+
+        return {
+            'country_code': country_code,
+            'subfields': subfields_list
+        }
+    except Exception as e:
+        print(f"Error reading data for {country_code}: {e}")
+        return None
+
+
+# --- COUNTRY ENDPOINTS ---
+
+@app.route('/api/countries')
+def get_countries():
+    countries = _get_countries_data()
+    if countries is None:
+        return jsonify({'error': 'Countries data not found'}), 404
+    return jsonify({'count': len(countries), 'data': countries})
+
+@app.route('/api/countries/<country_code>/subfields')
+def get_country_subfields(country_code):
+    subfields = _get_country_subfields_data(country_code)
+    if subfields is None:
+        return jsonify({'error': f'No data found for country {country_code}'}), 404
+    return jsonify({'count': len(subfields), 'data': subfields})
+
+@app.route('/api/countries/<country_code>/topics')
+def get_country_topics(country_code):
+    country_dir = os.path.join(DATA_DIR, 'countries', country_code.upper())
+    topics_path = os.path.join(country_dir, 'topics.csv')
+    subfield_id = request.args.get('subfield_id')
+
+    if not os.path.exists(topics_path):
+        return jsonify({'error': f'No topics data found for country {country_code}'}), 404
+
+    df = pd.read_csv(topics_path)
+
+    if subfield_id:
+        df = df[df['subfield_id'] == int(subfield_id)]
+        if df.empty:
+            return jsonify({'error': f'No topics found for subfield {subfield_id}'}), 404
+
+    return jsonify({'count': len(df), 'data': df.to_dict('records')})
+
+@app.route('/api/countries/<country_code>/data')
+def get_country_data(country_code):
+    country_code = country_code.upper()
+    country_dir = os.path.join(DATA_DIR, 'countries', country_code)
+    subfields_path = os.path.join(country_dir, 'subfields.csv')
+    topics_path = os.path.join(country_dir, 'topics.csv')
+
+    if not os.path.exists(subfields_path):
+        return jsonify({'error': f'No data found for country {country_code}'}), 404
+
+    try:
+        subfields_df = pd.read_csv(subfields_path)
+        topics_df = pd.read_csv(topics_path) if os.path.exists(topics_path) else pd.DataFrame()
+
+        subfields_list = []
+        for _, row in subfields_df.iterrows():
+            subfield_id = int(row['id'])
+            subfield_topics = []
+
+            if not topics_df.empty and 'subfield_id' in topics_df.columns:
+                matching_topics = topics_df[topics_df['subfield_id'] == subfield_id]
+                if not matching_topics.empty:
+                    topic_records = matching_topics[['id', 'name', 'works_count']].to_dict('records')
+                    subfield_topics = topic_records[:5]
+
+            subfields_list.append({
+                'id': str(subfield_id),
+                'name': str(row['name']),
+                'works_count': int(row['works_count']),
+                'topics': subfield_topics
+            })
+
+        return jsonify({
+            'country_code': country_code,
+            'subfields': subfields_list
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'error': f'Error reading data for {country_code}: {str(e)}', 'traceback': traceback.format_exc()}), 500
+
+
+# --- HELPER FUNCTION ---
+def generate_graph_from_df(df):
+    nodes = []
+    names = []
+
+    if df.empty: return {'nodes': [], 'links': []}
+
+    # 1. Build Nodes
+    for _, row in df.iterrows():
+        nodes.append({
+            'id': str(row['id']),
+            'name': row['name'],
+            'us_works_count': int(row['us_works_count']),
+            'size': 10 + (int(row['us_works_count']) / df['us_works_count'].max() * 40)
+        })
+        names.append(row['name'])
+
+    # 2. Build Links (Semantic Similarity)
+    links = []
+    try:
+        if len(names) > 1:
+            vectorizer = TfidfVectorizer(stop_words='english')
+            tfidf_matrix = vectorizer.fit_transform(names)
+            similarity_matrix = cosine_similarity(tfidf_matrix)
+            threshold = 0.10
+
+            for i in range(len(nodes)):
+                for j in range(i + 1, len(nodes)):
+                    sim = float(similarity_matrix[i][j])
+                    if sim > threshold:
+                        links.append({
+                            'source': nodes[i]['id'],
+                            'target': nodes[j]['id'],
+                            'similarity': sim,
+                            'strength': sim
+                        })
+    except Exception as e:
+        print(f"Similarity error: {e}")
+        links = []
+
+    return {
+        'nodes': nodes,
+        'links': links,
+        'min_works_count': int(df['us_works_count'].min()),
+        'max_works_count': int(df['us_works_count'].max())
+    }
+
+
+# --- CHATBOT ENDPOINTS ---
 
 @app.route('/api/classify', methods=['POST'])
 def classify_intent():
@@ -173,7 +520,6 @@ def chat():
                 classification['parameters']['countries'].append(country.upper())
 
         # Generate a response message
-        # (Later this will use a RAG system, but for now we use a simple placeholder)
         response_text = generate_response(message, classification)
 
         # Build the response
@@ -217,7 +563,6 @@ def chat():
 def generate_response(message, classification):
     """
     Generate a response message based on what the user asked for.
-    This is a simple version - later it will use a RAG system.
     """
     intent = classification['intent']
 
@@ -301,7 +646,7 @@ def generate_chart_description(classification):
 
 def fetch_chart_data(classification, country=None):
     """
-    Fetch actual data from the main API based on the classification.
+    Fetch actual data from the local functions based on the classification.
     This function gets the data needed to render the chart.
     """
     try:
@@ -320,21 +665,14 @@ def fetch_chart_data(classification, country=None):
             limit = params.get('limit', 10)
 
             # Check if the query is about ranking countries (not subfields)
-            # Look for keywords like "countries", "country", "nations", "by research output"
             query_lower = classification.get('original_query', '').lower() if isinstance(classification.get('original_query'), str) else ''
             is_country_ranking = any(keyword in query_lower for keyword in ['countries', 'country', 'nations', 'by research output', 'by output'])
 
             if is_country_ranking:
                 # Rank countries by total research output
                 try:
-                    response = requests.get(
-                        f"{API_BASE_URL}/api/countries",
-                        timeout=10
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        all_countries = data.get('data', [])
-
+                    all_countries = _get_countries_data()
+                    if all_countries:
                         # Sort countries by total_works (descending)
                         sorted_countries = sorted(
                             all_countries,
@@ -358,13 +696,9 @@ def fetch_chart_data(classification, country=None):
                 country_code = countries[0] if countries else 'US'
 
                 try:
-                    response = requests.get(
-                        f"{API_BASE_URL}/api/countries/{country_code}/subfields",
-                        timeout=5
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        subfields = data.get('data', [])[:limit]
+                    subfields = _get_country_subfields_data(country_code)
+                    if subfields:
+                        subfields = subfields[:limit]
 
                         # Format for chart
                         return {
@@ -382,19 +716,12 @@ def fetch_chart_data(classification, country=None):
             subfield_names = params.get('subfields', [])
 
             # Case 1: Compare multiple subfields (same country or different countries)
-            # Example: "Compare ecology and physics" or "Compare ecology and physics in US"
             if len(subfield_names) >= 2:
-                # Multiple subfields to compare
                 country_code = countries[0] if countries else (country or 'US')
 
                 try:
-                    response = requests.get(
-                        f"{API_BASE_URL}/api/countries/{country_code}/subfields",
-                        timeout=5
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        all_subfields = data.get('data', [])
+                    all_subfields = _get_country_subfields_data(country_code)
+                    if all_subfields:
 
                         # Find each subfield mentioned
                         for subfield_name in subfield_names[:5]:  # Limit to 5 subfields
@@ -426,19 +753,13 @@ def fetch_chart_data(classification, country=None):
                     print(f"Error fetching subfield comparison data: {e}")
 
             # Case 2: Compare one subfield across multiple countries
-            # Example: "Compare ecology in US and CA"
             elif len(subfield_names) == 1 and len(countries) >= 2:
                 subfield_name = subfield_names[0]
 
                 for country_code in countries[:3]:  # Limit to 3 countries
                     try:
-                        response = requests.get(
-                            f"{API_BASE_URL}/api/countries/{country_code}/subfields",
-                            timeout=5
-                        )
-                        if response.status_code == 200:
-                            data = response.json()
-                            subfields = data.get('data', [])
+                        subfields = _get_country_subfields_data(country_code)
+                        if subfields:
 
                             # Find the subfield by name (case-insensitive, partial match)
                             matching_subfield = None
@@ -483,16 +804,12 @@ def fetch_chart_data(classification, country=None):
                         'subfield_name': subfield_name
                     }
 
-            # Default: compare total works across countries (original behavior)
+            # Default: compare total works across countries
             for country_code in countries[:3]:  # Limit to 3 countries
                 try:
-                    response = requests.get(
-                        f"{API_BASE_URL}/api/countries/{country_code}/data",
-                        timeout=5
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        total_works = sum(sf['works_count'] for sf in data.get('subfields', []))
+                    country_data = _get_country_data_internal(country_code)
+                    if country_data:
+                        total_works = sum(sf['works_count'] for sf in country_data.get('subfields', []))
                         comparison_data.append({
                             'name': country_code,
                             'value': total_works
@@ -513,13 +830,9 @@ def fetch_chart_data(classification, country=None):
             country_code = countries[0] if countries else 'US'
 
             try:
-                response = requests.get(
-                    f"{API_BASE_URL}/api/countries/{country_code}/subfields",
-                    timeout=5
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    subfields = data.get('data', [])[:10]  # Top 10 for distribution
+                subfields = _get_country_subfields_data(country_code)
+                if subfields:
+                    subfields = subfields[:10]  # Top 10 for distribution
 
                     total = sum(sf['works_count'] for sf in subfields)
 
@@ -536,13 +849,9 @@ def fetch_chart_data(classification, country=None):
         # Default: return ranking data
         country_code = countries[0] if countries else 'US'
         try:
-            response = requests.get(
-                f"{API_BASE_URL}/api/countries/{country_code}/subfields",
-                timeout=5
-            )
-            if response.status_code == 200:
-                data = response.json()
-                subfields = data.get('data', [])[:10]
+            subfields = _get_country_subfields_data(country_code)
+            if subfields:
+                subfields = subfields[:10]
 
                 return {
                     'labels': [sf['name'] for sf in subfields],
@@ -562,9 +871,7 @@ def fetch_chart_data(classification, country=None):
     return None
 
 
-# Run the app when this file is executed
 if __name__ == '__main__':
-    print(f"Starting Chatbot API on port {PORT}...")
-    print(f"API Base URL: {API_BASE_URL}")
-    print(f"Intent Classification: Enabled")
-    app.run(debug=True, host='0.0.0.0', port=PORT)
+    print("Starting OpenAlex Physical Sciences API with Chatbot on port 5000...")
+    print("Chatbot endpoints: /api/chat, /api/classify")
+    app.run(debug=True, host='0.0.0.0', port=5000)

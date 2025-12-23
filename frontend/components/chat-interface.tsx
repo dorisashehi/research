@@ -23,7 +23,7 @@ interface ChatInterfaceProps {
 }
 
 const CHATBOT_API_URL =
-  process.env.NEXT_PUBLIC_CHATBOT_API_URL || "http://localhost:5050";
+  process.env.NEXT_PUBLIC_CHATBOT_API_URL || "http://localhost:5000";
 
 export default function ChatInterface({
   isOpen,
@@ -100,7 +100,7 @@ export default function ChatInterface({
       console.error("Error sending message:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Sorry, I'm having trouble connecting to the chatbot. Please make sure the chatbot API is running on port 5050.",
+        text: "Sorry, I'm having trouble connecting to the chatbot. Please make sure the chatbot API is running on port 5000.",
         isUser: false,
         timestamp: new Date(),
       };
@@ -173,7 +173,7 @@ export default function ChatInterface({
       console.error("Error sending message:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Sorry, I'm having trouble connecting to the chatbot. Please make sure the chatbot API is running on port 5050.",
+        text: "Sorry, I'm having trouble connecting to the chatbot. Please make sure the chatbot API is running on port 5000.",
         isUser: false,
         timestamp: new Date(),
       };
