@@ -122,7 +122,9 @@ export default function ControlPanel({
         <div className="mb-6">
           <label className="block text-xs uppercase text-gray-400 tracking-wider mb-3 font-medium">
             ROTATION SPEED:{" "}
-            <span className="text-cyan-400">{rotationSpeed.toFixed(1)}X</span>
+            <span style={{ color: "#4fc3ae" }}>
+              {rotationSpeed.toFixed(1)}X
+            </span>
           </label>
           <input
             type="range"
@@ -133,11 +135,36 @@ export default function ControlPanel({
             onChange={(e) =>
               onRotationSpeedChange(Number.parseFloat(e.target.value))
             }
-            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer rotation-slider"
             style={{
-              background: `linear-gradient(to right, #22d3ee 0%, #22d3ee ${
+              background: `linear-gradient(to right, #4fc3ae 0%, #4fc3ae ${
                 (rotationSpeed / 5) * 100
               }%, #475569 ${(rotationSpeed / 5) * 100}%, #475569 100%)`,
+            }}
+          />
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            .rotation-slider::-webkit-slider-thumb {
+              appearance: none;
+              width: 18px;
+              height: 18px;
+              border-radius: 50%;
+              background: #4fc3ae;
+              cursor: pointer;
+              border: 2px solid #0f172a;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            }
+            .rotation-slider::-moz-range-thumb {
+              width: 18px;
+              height: 18px;
+              border-radius: 50%;
+              background: #4fc3ae;
+              cursor: pointer;
+              border: 2px solid #0f172a;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            }
+          `,
             }}
           />
         </div>

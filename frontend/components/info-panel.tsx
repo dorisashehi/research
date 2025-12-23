@@ -156,7 +156,7 @@ export default function InfoPanel({
                             color: "#0f172a",
                           }}
                         >
-                          #{idx + 1}
+                          {idx + 1}
                         </span>
                         <div className="flex-1">
                           <div
@@ -175,7 +175,7 @@ export default function InfoPanel({
                       </div>
                       {(hasTopics || (onFetchTopics && subfield.id)) && (
                         <span
-                          className={`text-lg transition-transform ml-2 flex-shrink-0 ${
+                          className={`text-lg transition-transform duration-300 ease-in-out ml-2 flex-shrink-0 ${
                             expandedIndex === idx ? "rotate-90" : ""
                           }`}
                           style={{ color: "#4fc3ae" }}
@@ -185,7 +185,13 @@ export default function InfoPanel({
                       )}
                     </div>
 
-                    {expandedIndex === idx && (
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        expandedIndex === idx
+                          ? "max-h-[500px] opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
                       <div className="bg-slate-900/50 px-4 py-3 border-t border-slate-700/50">
                         {isLoading ? (
                           <div className="text-center text-gray-400 text-xs py-4">
@@ -217,7 +223,7 @@ export default function InfoPanel({
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}

@@ -438,11 +438,11 @@ export default function GlobeVisualization() {
         }
       });
 
-      // Make border lines white and fully opaque
+      // Make border lines #4fc3ae and fully opaque
       borderLinesRef.current.forEach((bl) => {
         if (bl.country === selectedCountry) {
           bl.line.material.opacity = 1.0;
-          bl.line.material.color.setHex(0xffffff);
+          bl.line.material.color.setHex(0x4fc3ae);
         }
       });
     }
