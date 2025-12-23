@@ -191,6 +191,8 @@ def chat():
 
         # If a chart is needed, fetch actual data and add chart configuration
         if classification['requires_chart']:
+            # Add the original query to classification for context
+            classification['original_query'] = message
             chart_data = fetch_chart_data(classification, country)
             response['chart_config'] = {
                 'type': classification['chart_type'],
@@ -244,8 +246,18 @@ def generate_chart_title(message, classification):
     title = message[:50]
 
     # Make it better based on what type of chart it is
-    if intent == 'ranking' and params.get('limit'):
-        title = f"Top {params['limit']} Rankings"
+    if intent == 'ranking':
+        # Check if it's about countries
+        query_lower = message.lower()
+        is_country_ranking = any(keyword in query_lower for keyword in ['countries', 'country', 'nations', 'by research output', 'by output'])
+
+        if is_country_ranking:
+            limit = params.get('limit', 10)
+            title = f"Top {limit} Countries by Research Output"
+        elif params.get('limit'):
+            title = f"Top {params['limit']} Rankings"
+        else:
+            title = "Top Rankings"
     elif intent == 'comparison':
         countries = params.get('countries', [])
         subfields = params.get('subfields', [])
@@ -303,29 +315,66 @@ def fetch_chart_data(classification, country=None):
         if not countries:
             countries = ['US']  # Default to US if no country specified
 
-        # Ranking queries - get top subfields
+        # Ranking queries - get top subfields or countries
         if intent == 'ranking':
             limit = params.get('limit', 10)
-            country_code = countries[0] if countries else 'US'
 
-            try:
-                response = requests.get(
-                    f"{API_BASE_URL}/api/countries/{country_code}/subfields",
-                    timeout=5
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    subfields = data.get('data', [])[:limit]
+            # Check if the query is about ranking countries (not subfields)
+            # Look for keywords like "countries", "country", "nations", "by research output"
+            query_lower = classification.get('original_query', '').lower() if isinstance(classification.get('original_query'), str) else ''
+            is_country_ranking = any(keyword in query_lower for keyword in ['countries', 'country', 'nations', 'by research output', 'by output'])
 
-                    # Format for chart
-                    return {
-                        'labels': [sf['name'] for sf in subfields],
-                        'values': [sf['works_count'] for sf in subfields],
-                        'data': subfields
-                    }
-            except Exception as e:
-                print(f"Error fetching ranking data: {e}")
-                return None
+            if is_country_ranking:
+                # Rank countries by total research output
+                try:
+                    response = requests.get(
+                        f"{API_BASE_URL}/api/countries",
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        all_countries = data.get('data', [])
+
+                        # Sort countries by total_works (descending)
+                        sorted_countries = sorted(
+                            all_countries,
+                            key=lambda x: x.get('total_works', 0),
+                            reverse=True
+                        )[:limit]
+
+                        # Format for chart
+                        return {
+                            'labels': [c['code'] for c in sorted_countries],
+                            'values': [c['total_works'] for c in sorted_countries],
+                            'data': sorted_countries
+                        }
+                except Exception as e:
+                    print(f"Error fetching country ranking data: {e}")
+                    import traceback
+                    print(traceback.format_exc())
+                    return None
+            else:
+                # Rank subfields within a country (original behavior)
+                country_code = countries[0] if countries else 'US'
+
+                try:
+                    response = requests.get(
+                        f"{API_BASE_URL}/api/countries/{country_code}/subfields",
+                        timeout=5
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        subfields = data.get('data', [])[:limit]
+
+                        # Format for chart
+                        return {
+                            'labels': [sf['name'] for sf in subfields],
+                            'values': [sf['works_count'] for sf in subfields],
+                            'data': subfields
+                        }
+                except Exception as e:
+                    print(f"Error fetching ranking data: {e}")
+                    return None
 
         # Comparison queries - compare multiple countries or subfields
         elif intent == 'comparison':

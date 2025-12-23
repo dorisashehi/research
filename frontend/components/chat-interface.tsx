@@ -47,6 +47,7 @@ export default function ChatInterface({
       `Compare US and China${countryText ? ` for ${selectedCountry}` : ""}`,
       `What is the distribution of subfields${countryText}?`,
       `Show me research trends${countryText}`,
+      `Rank countries by research output`,
       `Compare ecology in US and CA`,
       `Compare ecology subfield of US with ecology subfield of CA`,
       `Compare ecology and physics${countryText}`,
@@ -212,6 +213,7 @@ export default function ChatInterface({
             variant="outline"
             size="sm"
             onClick={() => {
+              // Reset all chat state
               setMessages([
                 {
                   id: "1",
@@ -221,8 +223,14 @@ export default function ChatInterface({
                 },
               ]);
               setInputValue("");
+              setIsLoading(false);
+              // Scroll to top
+              if (messagesEndRef.current) {
+                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+              }
             }}
-            className="h-8 border-[#4fc3ae]/50 text-white hover:bg-[#4fc3ae]/10 hover:border-[#4fc3ae]"
+            disabled={isLoading}
+            className="h-8 border-[#4fc3ae]/50 text-white hover:bg-[#4fc3ae]/10 hover:border-[#4fc3ae] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reset
           </Button>
